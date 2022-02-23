@@ -1,3 +1,5 @@
+**THIS REPO IS UNDER HEAVY DEVELOPMENT. IT IS NOT IN A USABLE STATE**
+
 =================================
 patrolling_sim v2.2.4 (Jan. 2022)
 =================================
