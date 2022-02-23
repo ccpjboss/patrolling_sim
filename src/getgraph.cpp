@@ -35,7 +35,8 @@
 * Author: David Portugal (2011-2014), and Luca Iocchi (2014-2016)
 *********************************************************************/
 
-#include <ros/ros.h>
+//#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 
 #include "getgraph.h"
 

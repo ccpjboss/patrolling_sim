@@ -38,13 +38,21 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <ros/ros.h>
-#include <move_base_msgs/MoveBaseAction.h>
-#include <actionlib/client/simple_action_client.h>
-#include <tf/transform_broadcaster.h>
-#include <tf/transform_listener.h>
-#include <nav_msgs/Odometry.h>
-#include <std_msgs/Int16MultiArray.h>
+//#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
+////#include <move_base_msgs/MoveBaseAction.h>
+#include "nav2_msgs/action/navigate_to_pose.hpp"
+//#include <actionlib/client/simple_action_client.h>
+#include "rclcpp_action/rclcpp_action.hpp"
+//#include <tf/transform_broadcaster.h>
+#include "tf2_ros/transform_broadcaster.h"
+//#include <tf/transform_listener.h>
+#include "tf2_ros/transform_listener.h"
+#include "tf2_ros/buffer.h"
+//#include <nav_msgs/Odometry.h>
+#include "nav_msgs/msg/odometry.hpp"
+//#include <std_msgs/Int16MultiArray.h>
+#include "std_msgs/msg/int16_multi_array.hpp"
 
 
 #include "getgraph.h"
@@ -55,7 +63,8 @@
 #include "message_types.h"
 
 typedef unsigned int uint;
-typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
+//typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
+typedef rclcpp_action::Client<nav2_msgs::action::NavigateToPose> nav2_client;
 
 class PatrolAgent {
 

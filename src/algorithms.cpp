@@ -38,7 +38,8 @@
 #include <ctime>
 #include <climits>
 #include <cmath>
-#include <ros/ros.h>
+//#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 
 #include "getgraph.h"
 #include "algorithms.h"

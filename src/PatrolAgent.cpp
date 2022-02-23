@@ -37,14 +37,23 @@
 
 #include <sstream>
 #include <string>
-#include <ros/ros.h>
-#include <ros/package.h> //to get pkg path
-#include <move_base_msgs/MoveBaseAction.h>
-#include <actionlib/client/simple_action_client.h>
-#include <tf/transform_broadcaster.h>
-#include <tf/transform_listener.h>
-#include <nav_msgs/Odometry.h>
-#include <std_srvs/Empty.h>
+//#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
+//#include <ros/package.h> //to get pkg path
+#include <ament_index_cpp/get_package_share_directory.hpp>
+//#include <move_base_msgs/MoveBaseAction.h>
+#include "nav2_msgs/action/navigate_to_pose.hpp"
+//#include <actionlib/client/simple_action_client.h>
+#include "rclcpp_action/rclcpp_action.hpp"
+//#include <tf/transform_broadcaster.h>
+#include "tf2_ros/transform_broadcaster.h"
+//#include <tf/transform_listener.h>
+#include "tf2_ros/transform_listener.h"
+#include "tf2_ros/buffer.h"
+//#include <nav_msgs/Odometry.h>
+#include "nav_msgs/msg/odometry.hpp"
+//#include <std_srvs/Empty.h>
+#include "std_srvs/srv/empty.hpp"
 
 #include "PatrolAgent.h"
 
