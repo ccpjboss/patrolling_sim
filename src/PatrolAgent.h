@@ -38,6 +38,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <functional>
 //#include <ros/ros.h>
 #include "rclcpp/rclcpp.hpp"
 ////#include <move_base_msgs/MoveBaseAction.h>
@@ -66,7 +67,7 @@ typedef unsigned int uint;
 //typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
 typedef rclcpp_action::Client<nav2_msgs::action::NavigateToPose> nav2_client;
 
-class PatrolAgent {
+class PatrolAgent : public rclcpp::Node{
 
 protected:
     
@@ -76,7 +77,8 @@ protected:
     double xPos[NUM_MAX_ROBOTS]; //tabelas de posições (atençao ao index pro caso de 1 so robot)
     double yPos[NUM_MAX_ROBOTS]; //tabelas de posições (atençao ao index pro caso de 1 so robot)
 
-    tf::TransformListener *listener;
+    //tf::TransformListener *listener;
+    std::shared_ptr<tf2_ros::TransformListener> listener{nullptr};
 
     std::string graph_file, mapname;
     uint dimension; // Graph Dimension
@@ -98,18 +100,26 @@ protected:
     std::string initial_positions;
     int aborted_count, resend_goal_count;
     
-    MoveBaseClient *ac; // action client for reaching target goals
+    //MoveBaseClient *ac; // action client for reaching target goals
+    std::shared_ptr<nav2_client> ac;
     
-    ros::Subscriber odom_sub, positions_sub;
-    ros::Publisher positions_pub;
-    ros::Subscriber results_sub;
-    ros::Publisher results_pub;
-    ros::Publisher cmd_vel_pub;
+    //ros::Subscriber odom_sub, positions_sub;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr positions_sub;
+
+    //ros::Publisher positions_pub;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr positions_pub;
+    //ros::Subscriber results_sub;
+    rclcpp::Subscription<std_msgs::msg::Int16MultiArray>::SharedPtr results_sub;
+    //ros::Publisher results_pub;
+    rclcpp::Publisher<std_msgs::msg::Int16MultiArray>::SharedPtr results_pub;
+    //ros::Publisher cmd_vel_pub;
+    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub;
 
     
 public:
     
-    PatrolAgent() { 
+    PatrolAgent() : Node("patrol_agent") { 
         listener=NULL;
         next_vertex = -1;
         initialize = true;
@@ -126,7 +136,7 @@ public:
     virtual void run();
     
     void getRobotPose(int robotid, float &x, float &y, float &theta);
-    void odomCB(const nav_msgs::Odometry::ConstPtr& msg);
+    void odomCB(const nav_msgs::msg::Odometry &msg);
     
     void sendGoal(int next_vertex);
     void cancelGoal();
@@ -152,10 +162,10 @@ public:
     void receive_positions();
     virtual void send_results();  // when goal is completed
     virtual void receive_results();  // asynchronous call
-    void do_send_message(std_msgs::Int16MultiArray &msg);
+    void do_send_message(std_msgs::msg::Int16MultiArray &msg);
     void send_interference();
-    void positionsCB(const nav_msgs::Odometry::ConstPtr& msg);
-    void resultsCB(const std_msgs::Int16MultiArray::ConstPtr& msg);
+    void positionsCB(const nav_msgs::msg::Odometry &msg);
+    void resultsCB(const std_msgs::msg::Int16MultiArray &msg);
     
     // Must be implemented by sub-classes
     virtual int compute_next_vertex() = 0;

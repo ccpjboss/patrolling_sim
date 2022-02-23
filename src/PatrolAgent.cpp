@@ -37,6 +37,9 @@
 
 #include <sstream>
 #include <string>
+#include <memory>
+#include <functional>
+#include <unistd.h>
 //#include <ros/ros.h>
 #include "rclcpp/rclcpp.hpp"
 //#include <ros/package.h> //to get pkg path
@@ -58,12 +61,13 @@
 #include "PatrolAgent.h"
 
 using namespace std;
+using namespace std::placeholders;
 
 #define DELTA_TIME_SEQUENTIAL_START 15
 #define SIMULATE_FOREVER true //WARNING: Set this to false, if you want a finishing condition.
 
-const std::string PS_path = ros::package::getPath("patrolling_sim"); 	//D.Portugal => get pkg path
-
+//const std::string PS_path = ros::package::getPath("patrolling_sim"); 	//D.Portugal => get pkg path
+const std::string PS_path = ament_index_cpp::get_package_share_directory("patrolling_sim");
 
 void PatrolAgent::init(int argc, char** argv) {
         /*
@@ -131,8 +135,9 @@ void PatrolAgent::init(int argc, char** argv) {
     goal_reached_wait = 0.0;
     /* Define Starting Vertex/Position (Launch File Parameters) */
 
-    ros::init(argc, argv, "patrol_agent");  // will be replaced by __name:=XXXXXX
-    ros::NodeHandle nh;
+    //ros::init(argc, argv, "patrol_agent");  // will be replaced by __name:=XXXXXX
+    rclcpp::init(argc, argv);  // will be replaced by __name:=XXXXXX
+    //ros::NodeHandle nh;
     
     // wait a random time (avoid conflicts with other robots starting at the same time...)
     double r = 3.0 * ((rand() % 1000)/1000.0);
@@ -174,11 +179,13 @@ void PatrolAgent::init(int argc, char** argv) {
     }
         
     //Publicar dados de "odom" para nó de posições
-    positions_pub = nh.advertise<nav_msgs::Odometry>("positions", 1); //only concerned about the most recent
+    //positions_pub = nh.advertise<nav_msgs::Odometry>("positions", 1); //only concerned about the most recent
+    positions_pub = this->create_publisher<nav_msgs::msg::Odometry>("positions",1);
         
     //Subscrever posições de outros robots
-    positions_sub = nh.subscribe<nav_msgs::Odometry>("positions", 10, boost::bind(&PatrolAgent::positionsCB, this, _1));  
-    
+    //positions_sub = nh.subscribe<nav_msgs::Odometry>("positions", 10, boost::bind(&PatrolAgent::positionsCB, this, _1));  
+    positions_sub = this->create_subscription<nav_msgs::msg::Odometry>("positions",10,std::bind(&PatrolAgent::positionsCB,this,std::placeholders::_1));
+
     char string1[40];
     char string2[40];
     
@@ -196,20 +203,24 @@ void PatrolAgent::init(int argc, char** argv) {
     listener = new tf::TransformListener();
 
     //Cmd_vel to backup:
-    cmd_vel_pub  = nh.advertise<geometry_msgs::Twist>(string2, 1);
-    
+    //cmd_vel_pub  = nh.advertise<geometry_msgs::Twist>(string2, 1);
+    cmd_vel_pub = this->create_publisher<geometry_msgs::msg::Twist>(string2,1);
     //Subscrever para obter dados de "odom" do robot corrente
-    odom_sub = nh.subscribe<nav_msgs::Odometry>(string1, 1, boost::bind(&PatrolAgent::odomCB, this, _1)); //size of the buffer = 1 (?)
+    //odom_sub = nh.subscribe<nav_msgs::Odometry>(string1, 1, boost::bind(&PatrolAgent::odomCB, this, _1)); //size of the buffer = 1 (?)
+    odom_sub = this->create_subscription<nav_msgs::msg::Odometry>(string1,1,std::bind(&PatrolAgent::odomCB,this,_1));
     
     ros::spinOnce(); 
     
     //Publicar dados para "results"
-    results_pub = nh.advertise<std_msgs::Int16MultiArray>("results", 100);
+    //results_pub = nh.advertise<std_msgs::Int16MultiArray>("results", 100);
+    results_pub = this->create_publisher<std_msgs::msg::Int16MultiArray>("results", 100);
     // results_sub = nh.subscribe("results", 10, resultsCB); //Subscrever "results" vindo dos robots
-    results_sub = nh.subscribe<std_msgs::Int16MultiArray>("results", 100, boost::bind(&PatrolAgent::resultsCB, this, _1) ); //Subscrever "results" vindo dos robots
+    //results_sub = nh.subscribe<std_msgs::Int16MultiArray>("results", 100, boost::bind(&PatrolAgent::resultsCB, this, _1) ); //Subscrever "results" vindo dos robots
+    results_sub = this->create_subscription<std_msgs::msg::Int16MultiArray>("results", 100, std::bind(&PatrolAgent::resultsCB, this, _1) ); //Subscrever "results" vindo dos robots
 
     // last time comm delay has been applied
-    last_communication_delay_time = ros::Time::now().toSec();   
+    //last_communication_delay_time = ros::Time::now().toSec();   
+    last_communication_delay_time = this->now().seconds();
 
     readParams();
 }
@@ -482,7 +493,7 @@ void PatrolAgent::getRobotPose(int robotid, float &x, float &y, float &theta) {
     // printf("Robot %d pose : %.1f %.1f \n",robotid,x,y);
 }
 
-void PatrolAgent::odomCB(const nav_msgs::Odometry::ConstPtr& msg) { //colocar propria posicao na tabela
+void PatrolAgent::odomCB(const nav_msgs::msg::Odometry &msg) { //colocar propria posicao na tabela
     
 //  printf("Colocar Propria posição na tabela, ID_ROBOT = %d\n",ID_ROBOT);
     int idx = ID_ROBOT;
