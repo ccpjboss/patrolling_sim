@@ -128,8 +128,8 @@ void SEBS_Agent::init(int argc, char** argv) {
     std::stringstream paramss;
     paramss << G1 << "," << G2;
 
-    ros::param::set("/algorithm_params",paramss.str());
-
+    auto param = rclcpp::Parameter("/algorithm_params",paramss.str());
+    this->set_parameter(param);
     
   //INITIALIZE tab_intention:
   tab_intention = new int[NUMBER_OF_ROBOTS];
@@ -147,7 +147,8 @@ void SEBS_Agent::processEvents() {
         //ROS_INFO("Robot %d reached Goal %d.\n", robot_arrived, vertex_arrived);    
 
         //Update Idleness Table:
-        double now = ros::Time::now().toSec();
+        //double now = ros::Time::now().toSec();
+        double now = this->now().seconds();
                 
         for(int i=0; i<dimension; i++){
             if (i == vertex_arrived){
@@ -179,7 +180,7 @@ void SEBS_Agent::send_results() {
     int value = ID_ROBOT;
     if (value==-1){value=0;}
     // [ID,msg_type,vertex,intention]
-    std_msgs::Int16MultiArray msg;   
+    std_msgs::msg::Int16MultiArray msg;   
     msg.data.clear();
     msg.data.push_back(value);
     msg.data.push_back(SEBS_MSG_TYPE);

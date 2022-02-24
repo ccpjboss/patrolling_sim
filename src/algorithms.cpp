@@ -49,7 +49,7 @@ uint reward_count = 0;
 
 using namespace std;
 
-
+rclcpp::Logger LOGGER = rclcpp::get_logger("patrolling_sim.algorithms");
 
 /*inline long double log2_new(const long double x){
     return  log(x) * M_LOG2E;
@@ -1665,8 +1665,9 @@ bool caminho_apartir_vizinhos_unicos (vertex *vertex_web, int dimension, int *ca
 	
 	//se mesmo assim i_list <= 1 -> e pq todos os nos tem 2 ou + vizs...
 	if (i_list<=1){
-	  ROS_WARN("Impossible to compute longest path.\n");
-//	  printf("Nao existem nos so com 1 vizinho. Impossivel computar caminho +longo\n");
+	  //ROS_WARN("Impossible to compute longest path.\n");
+	  RCLCPP_WARN(LOGGER,"Impossible to compute longest path.\n");
+	//	  printf("Nao existem nos so com 1 vizinho. Impossivel computar caminho +longo\n");
 	  return false;
 	}
 	
@@ -2126,7 +2127,7 @@ bool computar_caminho_de_ida (vertex *vertex_web, int dimension, int *caminho_de
 				
 				if(j==i_desvio-1){
 //				  printf("ERRO: nao houve atribuicao de prox_no e no_ant\n");
-				  ROS_WARN("Error: There was no atribution of previous and next vertex.\n");
+				  RCLCPP_WARN(LOGGER,"Error: There was no atribution of previous and next vertex.\n");
 				}
 			  }			  
 			  
@@ -2601,10 +2602,11 @@ uint get_MSP_dimension (const char* msp_file) {
 	uint dimension;
 	
 	if(file == NULL){
-		ROS_INFO("Can not open filename %s", msp_file);
-		ROS_BREAK();	
+		RCLCPP_INFO(LOGGER,"Can not open filename %s", msp_file);
+		//ROS_BREAK();	
+		rclcpp::shutdown();
 	}else{
-		ROS_INFO("MSP Route File Opened. Reading Dimensions.\n");
+		RCLCPP_INFO(LOGGER,"MSP Route File Opened. Reading Dimensions.\n");
 		fscanf (file, "%u", &dimension);
 	}
 	fclose(file);
@@ -2617,10 +2619,11 @@ void get_MSP_route (uint *route, uint dimension, const char* msp_file) {
    file = fopen (msp_file,"r");
    
    if(file == NULL){
-      ROS_INFO("Can not open filename %s", msp_file);
-      ROS_BREAK();	
+      RCLCPP_INFO(LOGGER,"Can not open filename %s", msp_file);
+      //ROS_BREAK();	
+	  rclcpp::shutdown();
    }else{
-      ROS_INFO("MSP Route File Opened. Getting MSP Route.\n");
+      RCLCPP_INFO(LOGGER,"MSP Route File Opened. Getting MSP Route.\n");
       
       uint i;
       float temp;
@@ -2906,7 +2909,8 @@ void update_likelihood_old (reinforcement_learning RL, double *real_histogram, d
   if (node_min == node_max){ //check idleness effect:
     
     double idleness_new [RL.num_possible_neighs];
-    double add_time = ros::Time::now().toSec() - (RL.time_then);
+    //double add_time = ros::Time::now().toSec() - (RL.time_then);
+    double add_time = rclcpp::Clock().now().seconds() - (RL.time_then);
     
     //double idleness_old_current = 0.0;
     //double idleness_new_current = add_time;
@@ -2950,7 +2954,7 @@ void update_likelihood_old (reinforcement_learning RL, double *real_histogram, d
   int hist_idx_next_vertex = get_hist_idx_from_edge_cost (hist_sort, size_hist, edge_cost);
   //ROS_INFO("hist_idx_next_vertex = %d",hist_idx_next_vertex);
   
-  ROS_INFO("Punish/Reward: %f", ((double)SIGN)*(1.0 - RL.entropy) );
+  RCLCPP_INFO(LOGGER,"Punish/Reward: %f", ((double)SIGN)*(1.0 - RL.entropy) );
   
   //ROS_INFO("Before: real_histogram [hist_idx_next_vertex] = %f", real_histogram [hist_idx_next_vertex]);
   
@@ -2986,10 +2990,10 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
  
   int id_next_vertex = pertence_uint_idx (RL.next_vertex, RL.id_neighbors, RL.num_possible_neighs);
   
-  ROS_INFO("id_next_vertex = %d", id_next_vertex);
+  RCLCPP_INFO(LOGGER,"id_next_vertex = %d", id_next_vertex);
   
   if (id_next_vertex<0){
-    ROS_WARN("Couldn't find id_next_vertex in update_likelihood()");
+    RCLCPP_WARN(LOGGER,"Couldn't find id_next_vertex in update_likelihood()");
     return;
   }
   
@@ -3017,20 +3021,20 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
     //  node_count_tab[i] = (double) RL.node_count[i] / (double) 2*vertex_web[ RL.id_neighbors[i] ].num_neigh;
     //}
     
-    ROS_INFO("node_count (%d) = %d", RL.id_neighbors[i], RL.node_count[i] );
-    ROS_INFO("degree (%d) = %d", RL.id_neighbors[i], vertex_web[RL.id_neighbors[i]].num_neigh);
-    ROS_INFO("node_count_norm (%d) = %f",RL.id_neighbors[i], node_count_tab[i]);    
+    RCLCPP_INFO(LOGGER,"node_count (%d) = %d", RL.id_neighbors[i], RL.node_count[i] );
+    RCLCPP_INFO(LOGGER,"degree (%d) = %d", RL.id_neighbors[i], vertex_web[RL.id_neighbors[i]].num_neigh);
+    RCLCPP_INFO(LOGGER,"node_count_norm (%d) = %f",RL.id_neighbors[i], node_count_tab[i]);    
     
   }
   
   //uint node_max = get_max(RL.node_count, RL.num_possible_neighs);
   double node_max = get_max_dbl(node_count_tab, RL.num_possible_neighs);
-  ROS_INFO("node_max_norm = %f",node_max); 
+  RCLCPP_INFO(LOGGER,"node_max_norm = %f",node_max); 
 
   //ROS_INFO("node_max = %d", node_max);
   
   double node_min = get_min_dbl(node_count_tab, RL.num_possible_neighs);
-  ROS_INFO("node_min_norm = %f",node_min); 
+  RCLCPP_INFO(LOGGER,"node_min_norm = %f",node_min); 
   //ROS_INFO("node_min = %d", node_min);
   
   /*if (node_count == node_max && node_max > node_min){
@@ -3040,17 +3044,17 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
   if (node_count == node_max){ 
    SIGN = -5;
    strong_reward = -1.0;
-   ROS_INFO("STRONG PUNISHMENT!!! node_count = node_max, SIGN = %d",SIGN);
+   RCLCPP_INFO(LOGGER,"STRONG PUNISHMENT!!! node_count = node_max, SIGN = %d",SIGN);
   }
   
   if (node_count == node_min){
    SIGN = 1;
-   ROS_INFO("node_count = node_min, SIGN = %d",SIGN); 
+   RCLCPP_INFO(LOGGER,"node_count = node_min, SIGN = %d",SIGN); 
   }  
   
   if (node_min == node_max){
    SIGN = 0;   
-   ROS_INFO("node_max = node_min, SIGN = %d",SIGN);
+   RCLCPP_INFO(LOGGER,"node_max = node_min, SIGN = %d",SIGN);
    
   }else{
     
@@ -3058,12 +3062,12 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
    if (RL.node_count[id_next_vertex] > 0 && RL.node_count[id_next_vertex] == minimum_global_node_count){ 
      SIGN = 5;	/**Dimension this as a parameter (alfa) in the reward funcion **/
      strong_reward = 1.0;
-     ROS_INFO("node_count = minimum_global_node_count, SIGN = %d",SIGN);
-     ROS_WARN("STRONG REWARD!!!!!!!!!!! Vertex with minimum global node count"); 
+     RCLCPP_INFO(LOGGER,"node_count = minimum_global_node_count, SIGN = %d",SIGN);
+     RCLCPP_WARN(LOGGER,"STRONG REWARD!!!!!!!!!!! Vertex with minimum global node count"); 
    }   
     
    if(SIGN==0){
-     ROS_INFO("node_max > node_count >= node_min, SIGN = %d",SIGN);
+     RCLCPP_INFO(LOGGER,"node_max > node_count >= node_min, SIGN = %d",SIGN);
    }
   }
   
@@ -3082,13 +3086,13 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
       }
     }
     
-    ROS_INFO("max_idleness = %f", max_idleness);
-    ROS_INFO("idleness_old(v=%d) = %f", RL.next_vertex, RL.idleness_old[id_next_vertex]);
+    RCLCPP_INFO(LOGGER,"max_idleness = %f", max_idleness);
+    RCLCPP_INFO(LOGGER,"idleness_old(v=%d) = %f", RL.next_vertex, RL.idleness_old[id_next_vertex]);
     
     //doesn't have the highest idleness - bad decision: negative reward
     if (max_idleness > RL.idleness_old[id_next_vertex]){
      SIGN = -1; /**alfa = 100**/
-     ROS_INFO("V=%d Doesn't have the highest idleness - bad decision, SIGN = %d",RL.next_vertex, SIGN);
+     RCLCPP_INFO(LOGGER,"V=%d Doesn't have the highest idleness - bad decision, SIGN = %d",RL.next_vertex, SIGN);
      
     }/*else{ //se idleness do seleccionado for 2X maior q idleness do 2º maior (Reward+)
 
@@ -3113,7 +3117,7 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
   }
   
   if (SIGN==0){
-    ROS_WARN("Punish/Reward: 0.0");
+    RCLCPP_WARN(LOGGER,"Punish/Reward: 0.0");
     //write_reward_evolution(0.0, robotid);
     return;
   }
@@ -3179,8 +3183,8 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
   }
   
   //double reward_inc = ((double)SIGN*SCALE_FACTOR)*(RL.entropy);
-  ROS_WARN("Punish/Reward: %f", reward_inc );  
-  ROS_INFO("Before Update: real_histogram [hist_idx_next_vertex] = %f", real_histogram [hist_idx_next_vertex]);
+  RCLCPP_WARN(LOGGER,"Punish/Reward: %f", reward_inc );  
+  RCLCPP_INFO(LOGGER,"Before Update: real_histogram [hist_idx_next_vertex] = %f", real_histogram [hist_idx_next_vertex]);
   
   //Update histogram:
   real_histogram [hist_idx_next_vertex] += reward_inc;  
@@ -3200,7 +3204,7 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
     real_histogram [hist_idx_next_vertex] = 20.0;
   }  
   
-  ROS_INFO("After Update (and truncation): real_histogram [hist_idx_next_vertex] = %f", real_histogram [hist_idx_next_vertex]);
+  RCLCPP_INFO(LOGGER,"After Update (and truncation): real_histogram [hist_idx_next_vertex] = %f", real_histogram [hist_idx_next_vertex]);
     
 }
 
@@ -3617,7 +3621,7 @@ int learning_algorithm(uint current_vertex, vertex *vertex_web, double *instanta
 	
 	int idx_edge = get_hist_idx (source, destination, current_vertex, neighbors[i], hist_dimension);
 	if (idx_edge < 0) {
-	  ROS_ERROR("learning_algorithm(): idx_edge = -1");
+	  RCLCPP_ERROR(LOGGER,"learning_algorithm(): idx_edge = -1");
 	  return -1;
 	}
 	
@@ -3721,7 +3725,8 @@ int learning_algorithm(uint current_vertex, vertex *vertex_web, double *instanta
       
     }
     
-    RL.time_then = ros::Time::now().toSec();
+    //RL.time_then = ros::Time::now().toSec();
+    RL.time_then = rclcpp::Clock().now().seconds();
     RL.next_vertex = next_vertex;    
     return next_vertex;
 

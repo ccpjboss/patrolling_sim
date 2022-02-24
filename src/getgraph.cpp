@@ -82,10 +82,10 @@ void GetGraphInfo (vertex *vertex_web, uint dimension, const char* graph_file){
    file = fopen (graph_file,"r");
    
    if(file == NULL){
-      ROS_INFO("Can not open filename %s", graph_file);
-      ROS_BREAK();	
+      RCLCPP_INFO(this->get_logger(),"Can not open filename %s", graph_file);
+      //ROS_BREAK();	
    }else{
-      ROS_INFO("Graph File Opened. Getting Graph Info.\n");
+      RCLCPP_INFO(this->get_logger(),"Graph File Opened. Getting Graph Info.\n");
       
       uint i,j;
       float temp;

@@ -79,7 +79,7 @@ protected:
 
     //tf::TransformListener *listener;
     std::shared_ptr<tf2_ros::TransformListener> listener{nullptr};
-
+    std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
     std::string graph_file, mapname;
     uint dimension; // Graph Dimension
     uint current_vertex; // current vertex
@@ -141,9 +141,10 @@ public:
     void sendGoal(int next_vertex);
     void cancelGoal();
     
-    void goalDoneCallback(const actionlib::SimpleClientGoalState &state, const move_base_msgs::MoveBaseResultConstPtr &result);
-    void goalActiveCallback();
-    void goalFeedbackCallback(const move_base_msgs::MoveBaseFeedbackConstPtr &feedback);
+    void goalDoneCallback(const rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::WrappedResult &result);
+    void goalActiveCallback(std::shared_future<rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr> future);
+    void goalFeedbackCallback(rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr,
+                                    const std::shared_ptr<const nav2_msgs::action::NavigateToPose::Feedback> feedback);
 
     
     void send_goal_reached();

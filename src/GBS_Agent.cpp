@@ -127,7 +127,8 @@ void GBS_Agent::processEvents() {
     if (arrived && NUMBER_OF_ROBOTS>1){ //a different robot arrived at a vertex: update idleness table and keep track of last vertices positions of other robots.
 
         //Update Idleness Table:
-        double now = ros::Time::now().toSec();
+        //double now = ros::Time::now().toSec();
+        double now = this->now().seconds();
                 
         for(int i=0; i<dimension; i++){
             if (i == vertex_arrived){
@@ -142,7 +143,8 @@ void GBS_Agent::processEvents() {
         arrived = false;
     }
     
-    ros::spinOnce();
+    //ros::spinOnce();
+    rclcpp::spin_some(this->get_node_base_interface());
 }
 
 int GBS_Agent::compute_next_vertex() {
@@ -154,7 +156,7 @@ void GBS_Agent::send_results() {
     int value = ID_ROBOT;
     if (value==-1){value=0;}
     // [ID,msg_type,vertex]
-    std_msgs::Int16MultiArray msg;   
+    std_msgs::msg::Int16MultiArray msg;   
     msg.data.clear();
     msg.data.push_back(value);
     msg.data.push_back(GBS_MSG_TYPE);

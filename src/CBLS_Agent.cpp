@@ -73,7 +73,7 @@ private:
   int number_of_edges;
   reinforcement_learning RL;
   long long int decision_number;
-  double now;
+  double now_time;
   double *avg_idleness;  // local idleness
   double *cur_avg_idleness;  // local idleness
   double *real_histogram; 
@@ -129,7 +129,8 @@ void CBLS_Agent::init(int argc, char** argv) {
   } 
   
   //INITIALIZE tables:
-  double time_zero = ros::Time::now().toSec();  
+  //double time_zero = ros::Time::now().toSec();  
+  double time_zero = this->now().seconds();
 
   avg_idleness = new double[dimension];	//closed avg
   cur_avg_idleness = new double[dimension];	//avg + inst
@@ -156,15 +157,16 @@ void CBLS_Agent::onGoalComplete() {
       
     		/** PUNISH & REWARD -- BEFORE **/ 
 		//Update Idleness Table:
-		now = ros::Time::now().toSec();
+		//now_time = ros::Time::now().toSec();
+		now_time = this->now().seconds();
 			
 		for(int i=0; i<dimension; i++){
 			if (i == next_vertex){
-				last_visit[i] = now;
+				last_visit[i] = now_time;
 				node_count[i]++;
 				avg_idleness[i] = ( avg_idleness[i] * (double) (node_count [i] - 1) + instantaneous_idleness [i] ) / ( (double) node_count [i] );		  		    
 			}	
-			instantaneous_idleness[i]= now - last_visit[i];  //ou seja: Zero para o next_vertex			
+			instantaneous_idleness[i]= now_time - last_visit[i];  //ou seja: Zero para o next_vertex			
 			//ROS_INFO("inst_idleness[%d] = %f", i, instantaneous_idleness[i]);
 			
 			//Update Curr Avg Idleness Table:
@@ -192,7 +194,7 @@ void CBLS_Agent::onGoalComplete() {
 	next_vertex = compute_next_vertex();
 	
 	if(next_vertex == -1){
-	 ROS_ERROR("ABORT (learning_algorithm: next_vertex = -1)");
+	 RCLCPP_ERROR(this->get_logger(),"ABORT (learning_algorithm: next_vertex = -1)");
 	 exit(-1);
 	}	
 	/** *****************************************************/  
@@ -211,7 +213,7 @@ void CBLS_Agent::onGoalComplete() {
 	  send_goal_reached(); // Send TARGET to monitor
 	  send_results();  // Algorithm specific function
 	  
-	  ROS_INFO("Sending goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
+	  RCLCPP_INFO(this->get_logger(),"Sending goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
 	  //sendGoal(vertex_web[next_vertex].x, vertex_web[next_vertex].y);  
 	  sendGoal(next_vertex);  // send to move_base
 	  
@@ -228,17 +230,17 @@ void CBLS_Agent::processEvents() {
         //ROS_INFO("Robot %d reached Goal %d.\n", robot_arrived, vertex_arrived);    
 
         //Update Idleness Table:
-        now = ros::Time::now().toSec();
+        now_time = this->now().seconds();
                 
         for(int i=0; i<dimension; i++){
             if (i == vertex_arrived){
                 //actualizar last_visit[dimension]
-                last_visit[vertex_arrived] = now;   
+                last_visit[vertex_arrived] = now_time;   
 			  node_count[vertex_arrived]++;
 			  avg_idleness[i] = ( avg_idleness[i] * (double) (node_count [i] - 1) + instantaneous_idleness [i] ) / ( (double) node_count [i] );		
             }           
             //actualizar instantaneous_idleness[dimension]
-            instantaneous_idleness[i] = now - last_visit[i];      
+            instantaneous_idleness[i] = now_time - last_visit[i];      
 	    cur_avg_idleness [i] = ( avg_idleness [i] * (double) (node_count [i]) + instantaneous_idleness [i] ) / ( (double) node_count [i] + 1 );		  	  		  	    
 	    //ROS_INFO("idleness[%d] = %f", i, instantaneous_idleness[i]);
         }     
@@ -266,7 +268,7 @@ void CBLS_Agent::send_results() {
     int value = ID_ROBOT;
     if (value==-1){value=0;}
     // [ID,msg_type,vertex,intention]
-    std_msgs::Int16MultiArray msg;   
+    std_msgs::msg::Int16MultiArray msg;   
     msg.data.clear();
     msg.data.push_back(value);
     msg.data.push_back(CBLS_MSG_TYPE);

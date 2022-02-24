@@ -111,7 +111,7 @@ int Conscientious_Reactive_Agent::compute_next_vertex() {
         next_vertex = vertex_web[current_vertex].id_neigh[0]; //only one possibility
     }
   
-    ROS_INFO("Conscientious_Reactive choice: %d",next_vertex);
+    RCLCPP_INFO(this->get_logger(),"Conscientious_Reactive choice: %d",next_vertex);
     return next_vertex;
 }
 

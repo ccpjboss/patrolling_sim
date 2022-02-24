@@ -127,14 +127,15 @@ void Conscientious_Cognitive_Agent::onGoalComplete()
 
     if (inpath){
         //Send the goal to the robot (Global Map)
-        ROS_INFO("Sending goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
+        RCLCPP_INFO(this->get_logger(),"Sending goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
         sendGoal(next_vertex);
     }    
 
     goal_complete = false; //garantir q n volta a entrar a seguir aqui
 //     printf("ID_ROBOT [3] = %d\n",ID_ROBOT); //-1 in the case there is only 1 robot.
 
-  ros::spinOnce();
+  //ros::spinOnce();
+  rclcpp::spin_some(this->get_node_base_interface());
     
 }
 
