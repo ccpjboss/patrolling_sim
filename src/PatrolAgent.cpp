@@ -59,6 +59,8 @@
 #include "std_srvs/srv/empty.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 #include "tf2/utils.h"
+#include "nav2_msgs/srv/clear_entire_costmap.hpp"
+
 #include "PatrolAgent.h"
 
 using namespace std;
@@ -303,26 +305,41 @@ void PatrolAgent::run() {
     ready();
     
     //initially clear the costmap (to make sure the robot is not trapped):
-    std_srvs::Empty srv;
+    //std_srvs::Empty srv;
     std::string mb_string;
      
-     if (ID_ROBOT>-1){
+    if (ID_ROBOT>-1){
              std::ostringstream id_string;
              id_string << ID_ROBOT;
              mb_string = "robot_" + id_string.str() + "/";
     }
-    mb_string += "move_base/clear_costmaps";
-    
+    mb_string += "local_costmap/clear_entirely_local_costmap";
+    this->clear_client = this->create_client<nav2_msgs::srv::ClearEntireCostmap>(mb_string.c_str());
+    auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();
+
+    while(!this->clear_client->wait_for_service(1s)){
+        if(!rclcpp::ok()){
+            RCLCPP_ERROR(this->get_logger(),"Interrupted...");
+            return ;
+        }
+        RCLCPP_INFO(this->get_logger(),"Service not available, waiting...");
+    }
+
+    auto result = this->clear_client->async_send_request(request);
+    /*result.get();
     if (ros::service::call(mb_string.c_str(), srv)){
     //if (ros::service::call("move_base/clear_costmaps", srv)){
         RCLCPP_INFO(this->get_logger(),"Costmap correctly cleared before patrolling task.");
     }else{
         RCLCPP_WARN(this->get_logger(),"Was not able to clear costmap (%s) before patrolling...", mb_string.c_str());
-    }
+    }*/
     
     // Asynch spinner (non-blocking)
-    ros::AsyncSpinner spinner(2); // Use n threads
-    spinner.start();
+    auto options = rclcpp::ExecutorOptions();
+    rclcpp::executors::MultiThreadedExecutor spinner(options,2);
+    //ros::AsyncSpinner spinner(2); // Use n threads
+    spinner.add_node(this->get_node_base_interface());
+    spinner.spin();
 //     ros::waitForShutdown();
 
     /* Run Algorithm */ 
@@ -606,20 +623,39 @@ void PatrolAgent::goalDoneCallback(const rclcpp_action::ClientGoalHandle<nav2_ms
             char srvname[80];
             
             if(ID_ROBOT<=-1){
-                sprintf(srvname,"/move_base/clear_costmaps");
+                sprintf(srvname,"/move_base/clear_costmaps/local_costmap/clear_entirely_local_costmap");
             }else{
-                sprintf(srvname,"/robot_%d/move_base/clear_costmaps",ID_ROBOT);
+                sprintf(srvname,"/robot_%d/move_base/clear_costmaps/local_costmap/clear_entirely_local_costmap",ID_ROBOT);
             }
             
-            ros::NodeHandle n;
-            ros::ServiceClient client = n.serviceClient<std_srvs::Empty>(srvname);
-            std_srvs::Empty srv;
-            if (client.call(srv)) {
+            //ros::NodeHandle n;
+            std::shared_ptr<rclcpp::Node> node_client = rclcpp::Node::make_shared("clear_client_2");
+            rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr clear_client2 = 
+                node_client->create_client<nav2_msgs::srv::ClearEntireCostmap>(srvname);
+            //ros::ServiceClient client = n.serviceClient<std_srvs::Empty>(srvname);
+            //std_srvs::Empty srv;
+
+            auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();
+            while (!clear_client2->wait_for_service(1s)) {
+                if (!rclcpp::ok()) {
+                    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
+                    return;
+                }
+                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
+            }
+
+            auto result = clear_client2->async_send_request(request);
+            if(rclcpp::spin_until_future_complete(node_client,result) == rclcpp::FutureReturnCode::SUCCESS){
+                RCLCPP_INFO(this->get_logger(),"Costmaps cleared.\n");
+            }else{
+                RCLCPP_ERROR(this->get_logger(),"Failed to call service move_base/clear_costmaps");
+            }
+            /*if (client.call(srv)) {
                 RCLCPP_INFO(this->get_logger(),"Costmaps cleared.\n");
             }
             else {
                 RCLCPP_ERROR(this->get_logger(),"Failed to call service move_base/clear_costmaps");
-            }
+            }*/
 
             RCLCPP_INFO(this->get_logger(),"Resend Goal!");
             ResendGoal = true;

@@ -54,7 +54,7 @@
 #include "nav_msgs/msg/odometry.hpp"
 //#include <std_msgs/Int16MultiArray.h>
 #include "std_msgs/msg/int16_multi_array.hpp"
-
+#include "nav2_msgs/srv/clear_entire_costmap.hpp"
 
 #include "getgraph.h"
 
@@ -116,6 +116,8 @@ protected:
     //ros::Publisher cmd_vel_pub;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub;
 
+    //Clear costmap client
+    rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr clear_client;
     
 public:
     
