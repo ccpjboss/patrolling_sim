@@ -48,6 +48,7 @@ float RESOLUTION;
 float OFFSET_X;
 float OFFSET_Y;
 
+
 uint GetGraphDimension (const char* graph_file){
   
    FILE *file;
@@ -55,10 +56,11 @@ uint GetGraphDimension (const char* graph_file){
    uint dimension;
    
    if(file == NULL){
-      ROS_INFO("Can not open filename %s", graph_file);
-      ROS_BREAK();	
+      RCLCPP_INFO(rclcpp::get_logger("getgraph"),"Can not open filename %s", graph_file);
+      //ROS_BREAK();	
+      rclcpp::shutdown();
    }else{
-      ROS_INFO("Graph File Opened. Reading Dimensions.\n");
+      RCLCPP_INFO(rclcpp::get_logger("getgraph"),"Graph File Opened. Reading Dimensions.\n");
       int r;
       r=fscanf (file, "%u", &dimension);
       
@@ -82,10 +84,10 @@ void GetGraphInfo (vertex *vertex_web, uint dimension, const char* graph_file){
    file = fopen (graph_file,"r");
    
    if(file == NULL){
-      RCLCPP_INFO(this->get_logger(),"Can not open filename %s", graph_file);
+      RCLCPP_INFO(rclcpp::get_logger("getgraph"),"Can not open filename %s", graph_file);
       //ROS_BREAK();	
    }else{
-      RCLCPP_INFO(this->get_logger(),"Graph File Opened. Getting Graph Info.\n");
+      RCLCPP_INFO(rclcpp::get_logger("getgraph"),"Graph File Opened. Getting Graph Info.\n");
       
       uint i,j;
       float temp;

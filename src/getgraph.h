@@ -42,6 +42,7 @@
 #include <stdlib.h>
 #include <cmath>
 
+
 //File Line of the First Vertex ID to read (Protection) - fscanf() ignores blank lines
 #define FIRST_VID 7
 

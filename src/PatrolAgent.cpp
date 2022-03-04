@@ -60,7 +60,6 @@
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 #include "tf2/utils.h"
 #include "nav2_msgs/srv/clear_entire_costmap.hpp"
-
 #include "PatrolAgent.h"
 
 using namespace std;
@@ -240,20 +239,20 @@ void PatrolAgent::ready() {
     
     /* Define Goal */
     if(ID_ROBOT==-1){ 
-        strcpy (move_string,"move_base"); //string = "move_base
+        strcpy (move_string,"navigate_to_pose"); //string = "move_base
     }else{
-        sprintf(move_string,"robot_%d/move_base",ID_ROBOT);
+        sprintf(move_string,"robot_%d/navigate_to_pose",ID_ROBOT);
     }
     
     //ac = new MoveBaseClient(move_string, true); 
-    this->ac = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(this,"navigate_to_pose");
+    this->ac = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(this,move_string);
     
     //wait for the action server to come up
     //while(!ac->waitForServer(ros::Duration(5.0))){
     while(!this->ac->wait_for_action_server(std::chrono::seconds(5))){
-        RCLCPP_INFO(this->get_logger(),"Waiting for the move_base action server to come up");
+        RCLCPP_INFO(this->get_logger(),"Waiting for the nav2 action server to come up");
     } 
-    RCLCPP_INFO(this->get_logger(),"Connected with move_base action server");    
+    RCLCPP_INFO(this->get_logger(),"Connected with nav2 action server");    
     
     initialize_node(); //announce that agent is alive
     
@@ -577,6 +576,7 @@ void PatrolAgent::sendGoal(int next_vertex)
     goal.pose.pose.position.y = target_y; // vertex_web[current_vertex].y;  
     goal.pose.pose.orientation = angle_quat; //doesn't matter really.
     //ac->sendGoal(goal, boost::bind(&PatrolAgent::goalDoneCallback, this, _1, _2), boost::bind(&PatrolAgent::goalActiveCallback,this), boost::bind(&PatrolAgent::goalFeedbackCallback, this,_1));  
+
     auto send_goal_options = rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SendGoalOptions();
     send_goal_options.goal_response_callback = std::bind(&PatrolAgent::goalActiveCallback,this,_1);
     send_goal_options.feedback_callback = std::bind(&PatrolAgent::goalFeedbackCallback,this,_1,_2);

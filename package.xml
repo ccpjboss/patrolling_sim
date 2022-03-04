@@ -1,8 +1,7 @@
-<?xml version="1.0"?>
-<package>
-  <name>patrolling_sim</name>
+<package format="3">
+  <name>patrolling_sim_ros2</name>
   <version>2.2.4</version>
-  <description>Multi-Robot Patrolling Stage/ROS Simulation Package.</description>
+  <description>Multi-Robot Patrolling Stage/ROS2 Simulation Package.</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->
@@ -41,32 +40,55 @@
   <!--   <run_depend>message_runtime</run_depend> -->
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
-  <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>actionlib</build_depend>
-  <build_depend>move_base_msgs</build_depend>
-  <build_depend>nav_msgs</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>tf</build_depend>
-  <build_depend>stage_ros</build_depend>
-  <build_depend>roslib</build_depend>
-  <build_depend>message_generation</build_depend>
-  <run_depend>actionlib</run_depend>
-  <run_depend>move_base_msgs</run_depend>
-  <run_depend>nav_msgs</run_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>tf</run_depend>
-  <run_depend>stage_ros</run_depend>
-  <run_depend>roslib</run_depend>
-  <run_depend>message_runtime</run_depend>
-  
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
 
+  <build_depend>rclcpp_action</build_depend>
+  <build_depend>nav2_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>rclcpp</build_depend>
+  <build_depend>tf2</build_depend>
+  <build_depend>tf2_geometry_msgs</build_depend>
+  <build_depend>tf2_ros</build_depend>
+  <build_depend>stage_ros</build_depend>
+  <build_depend>stage_ros2</build_depend>
+  <build_depend>std_srvs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <!-- <build_depend>roslib</build_depend> -->
+  <!-- <build_depend>message_generation</build_depend> -->
+
+  <exec_depend>rclcpp_action</exec_depend>
+  <exec_depend>nav2_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>tf2</exec_depend>
+  <exec_depend>tf2_geometry_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>stage_ros</exec_depend>
+  <exec_depend>stage_ros2</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <!-- <exec_depend>roslib</exec_depend>-->
+  <!-- <exec_depend>message_generation</exec_depend> -->
+  <!-- <run_depend>actionlib</run_depend>-->
+  <!-- <run_depend>move_base_msgs</run_depend>-->
+  <!-- <run_depend>nav_msgs</run_depend>-->
+  <!-- <run_depend>roscpp</run_depend>-->
+  <!-- <run_depend>tf</run_depend>-->
+  <!-- <run_depend>stage_ros</run_depend>-->
+  <!-- <run_depend>roslib</run_depend>-->
+  <!-- <run_depend>message_runtime</run_depend>-->
+  <depend>patrolling_sim_msgs</depend> 
+
+<exec_depend>rosidl_default_runtime</exec_depend>
+<member_of_group>rosidl_interface_packages</member_of_group>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
     <!-- You can specify that this package is a metapackage here: -->
     
     <!-- <metapackage/> -->
-      
+    <build_type>ament_cmake</build_type>
     <!--<cpp cflags="-I${prefix}/srv/cpp"/>-->
 
     <!-- Other tools can request additional information be placed here -->

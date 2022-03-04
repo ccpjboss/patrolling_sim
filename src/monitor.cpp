@@ -67,7 +67,7 @@ using namespace std;
 
 #include "getgraph.h"
 #include "message_types.h"
-#include "patrolling_sim/GoToStartPosSrv.h"
+#include "patrolling_sim_msgs/srv/go_to_start_pos_srv.hpp"
 
 #define NUM_MAX_ROBOTS 32
 #define DEAD_ROBOT_TIME 300.0 // (seconds) time from last goal reached after which a robot is considered dead
@@ -89,9 +89,14 @@ using std::endl;
 
 typedef unsigned int uint;
 
-ros::Subscriber results_sub;
-ros::Publisher results_pub, screenshot_pub;
-ros::ServiceServer GotoStartPosMethod;
+//ros::Subscriber results_sub;
+rclcpp::Subscription<std_msgs::msg::Int16MultiArray>::SharedPtr results_sub;
+//ros::Publisher results_pub, screenshot_pub;
+rclcpp::Publisher<std_msgs::msg::Int16MultiArray>::SharedPtr results_pub;
+rclcpp::Publisher<std_msgs::msg::String>::SharedPtr screenshot_pub;
+//ros::ServiceServer GotoStartPosMethod;
+//rclcpp::Service<patrolling_sim_msgs::srv::GoToStartPosSrv>::SharedPtr GotoStartPosMethod;
+rclcpp::Client<patrolling_sim_msgs::srv::GoToStartPosSrv>::SharedPtr GotoStartPosMethod;
 
 //Initialization:
 bool initialize = true; // Initialization flag
@@ -113,8 +118,9 @@ time_t real_time_zero;
 double goal_reached_wait,comm_delay,lost_message_rate;
 string algorithm, algparams, nav_mod, initial_positions;
 
-const std::string PS_path = ros::package::getPath("patrolling_sim"); 	//D.Portugal => get pkg path
-
+//const std::string PS_path = ros::package::getPath("patrolling_sim"); 	//D.Portugal => get pkg path
+const std::string PS_path = ament_index_cpp::get_package_share_directory("patrolling_sim");
+std::shared_ptr<rclcpp::Node> n_ptr;
 
 #define MAX_DIMENSION 200
 
@@ -174,17 +180,17 @@ void set_last_goal_reached(int k, double val)
 }
 
 
-void resultsCB(const std_msgs::Int16MultiArray::ConstPtr& msg) 
+void resultsCB(const std_msgs::msg::Int16MultiArray &msg) 
 {
     dolog("resultsCB - begin");
 
-    std::vector<signed short>::const_iterator it = msg->data.begin();    
+    std::vector<signed short>::const_iterator it = msg.data.begin();    
     
     std::vector<int> vresults;
     
     vresults.clear();
     
-    for (size_t k=0; k<msg->data.size(); k++) {
+    for (size_t k=0; k<msg.data.size(); k++) {
         vresults.push_back(*it); it++;
     }
 
@@ -200,7 +206,8 @@ void resultsCB(const std_msgs::Int16MultiArray::ConstPtr& msg)
                 init_robots[id_robot] = true;
                 
                 //Patch D.Portugal (needed to support other simulators besides Stage):
-                double current_time = ros::Time::now().toSec();
+                //double current_time = ros::Time::now().toSec();
+                double current_time = n_ptr->now().seconds();
                 //initialize last_goal_reached:
                 set_last_goal_reached(id_robot,current_time);
                 
@@ -211,23 +218,33 @@ void resultsCB(const std_msgs::Int16MultiArray::ConstPtr& msg)
                 // check if robots need to travel to starting positions
                 while(goto_start_pos){ //if or while (?)
                     
-                    patrolling_sim::GoToStartPosSrv::Request Req;
-                    Req.teamsize.data = teamsize;
-                    Req.sleep_between_goals.data = 20; //time in secs to wait before sending goals to each different robot
-                    patrolling_sim::GoToStartPosSrv::Response Rep;	
-                    
-                    ROS_INFO("Sending all robots to starting position.");
-                    
-                    if (!ros::service::call("/GotoStartPosSrv", Req, Rep)){ //blocking call
-                        ROS_ERROR("Error invoking /GotoStartPosSrv.");	
-                        ROS_ERROR("Sending robots to initial position failed.");
-                        ros::shutdown(); //make sense for while implementation
+                    //patrolling_sim::GoToStartPosSrv::Request Req;
+                    //patrolling_sim_msgs::srv::GoToStartPosSrv::Request Req;
+                    auto Req = std::make_shared<patrolling_sim_msgs::srv::GoToStartPosSrv::Request>();
+                    Req->teamsize.data = teamsize;
+                    Req->sleep_between_goals.data = 20; //time in secs to wait before sending goals to each different robot
+                    //patrolling_sim_msgs::srv::GoToStartPosSrv::Response Rep;	
+                    RCLCPP_INFO(n_ptr->get_logger(), "Sending all robots to starting position.");
+                    auto Rep = GotoStartPosMethod->async_send_request(Req);
+                    if(rclcpp::spin_until_future_complete(n_ptr,Rep) == rclcpp::FutureReturnCode::SUCCESS){
+                      goto_start_pos = false;
+                      system("rosnode kill GoToStartPos &");  //we don't need the service anymore.
+                    }else{
+                      RCLCPP_ERROR(n_ptr->get_logger(), "Error invoking /GotoStartPosSrv.");	
+                      RCLCPP_ERROR(n_ptr->get_logger(), "Sending robots to initial position failed.");
+                      rclcpp::shutdown(); //make sense for while implementation
+                      return;
+                    } 
+                    /*if (!ros::service::call("/GotoStartPosSrv", Req, Rep)){ //blocking call
+                        RCLCPP_ERROR(n_ptr->get_logger(), "Error invoking /GotoStartPosSrv.");	
+                        RCLCPP_ERROR(n_ptr->get_logger(), "Sending robots to initial position failed.");
+                        rclcpp::shutdown(); //make sense for while implementation
                         return;
                         
                     }else{
                         goto_start_pos = false;
                         system("rosnode kill GoToStartPos &");  //we don't need the service anymore.
-                    }               
+                    } */              
                     
                 }
                     
@@ -235,20 +252,23 @@ void resultsCB(const std_msgs::Int16MultiArray::ConstPtr& msg)
                 initialize = false;
                     
                 //Clock Reset:
-                time_zero = ros::Time::now().toSec();
+                //time_zero = ros::Time::now().toSec();
+                time_zero = n_ptr->now().seconds();
                 last_report_time = time_zero; 
                                     
                 time (&real_time_zero);
                 printf("Time zero = %.1f (sim) = %lu (real) \n", time_zero,(long)real_time_zero);
 
-                std_msgs::Int16MultiArray msg;  // -1,msg_type,100,0,0
+                //std_msgs::Int16MultiArray msg;  // -1,msg_type,100,0,0
+                std_msgs::msg::Int16MultiArray msg;  // -1,msg_type,100,0,0
                 msg.data.clear();
                 msg.data.push_back(-1);
                 msg.data.push_back(INITIALIZE_MSG_TYPE);
                 msg.data.push_back(100);  // Go !!!
-                results_pub.publish(msg);
-                ros::spinOnce();      
-                
+                //results_pub.publish(msg);
+                results_pub->publish(msg);
+                //ros::spinOnce();      
+                rclcpp::spin_some(n_ptr);      
                 }
             }
             
@@ -261,11 +281,12 @@ void resultsCB(const std_msgs::Int16MultiArray::ConstPtr& msg)
             //goal sent by a robot during the experiment [ID,msg_type,vertex,intention,0]
             if (initialize==false){ 
                 goal = vresults[2];
-                ROS_INFO("Robot %d reached Goal %d.\n", id_robot, goal); 
+                RCLCPP_INFO(n_ptr->get_logger(), "Robot %d reached Goal %d.\n", id_robot, goal); 
                 fflush(stdout);
                 goal_reached = true;
                 update_stats(id_robot, goal);
-                ros::spinOnce();
+                //ros::spinOnce();
+                rclcpp::spin_some(n_ptr);
             }
             break;
         }
@@ -274,9 +295,10 @@ void resultsCB(const std_msgs::Int16MultiArray::ConstPtr& msg)
         {
             //interference: [ID,msg_type]
             if (initialize==false){
-                ROS_INFO("Robot %d sent interference.\n", id_robot); 
+                RCLCPP_INFO(n_ptr->get_logger(), "Robot %d sent interference.\n", id_robot); 
                 interference_cnt++;
-                ros::spinOnce();
+                //ros::spinOnce();
+                rclcpp::spin_some(n_ptr);
             }
             break;
         }
@@ -287,14 +309,17 @@ void resultsCB(const std_msgs::Int16MultiArray::ConstPtr& msg)
 }
 
 void finish_simulation (){ //-1,msg_type,999,0,0
-  ROS_INFO("Sending stop signal to patrol agents.");
-  std_msgs::Int16MultiArray msg;  
+  RCLCPP_INFO(n_ptr->get_logger(), "Sending stop signal to patrol agents.");
+  //std_msgs::Int16MultiArray msg;  
+  std_msgs::msg::Int16MultiArray msg;  
   msg.data.clear();
   msg.data.push_back(-1);
   msg.data.push_back(INITIALIZE_MSG_TYPE);
   msg.data.push_back(999);  // end of the simulation
-  results_pub.publish(msg);
-  ros::spinOnce();  
+  //results_pub.publish(msg);
+  results_pub->publish(msg);
+  //ros::spinOnce();  
+  rclcpp::spin_some(n_ptr);  
 
 #if EXTENDED_STAGE  
   ROS_INFO("Taking a screenshot of the simulator...");
@@ -303,7 +328,8 @@ void finish_simulation (){ //-1,msg_type,999,0,0
   screenshot_pub.publish(ss);
 #endif
   
-  ros::spinOnce();  
+  //ros::spinOnce();  
+  rclcpp::spin_some(n_ptr);  
 }
 
 // return the median value in a vector of size "dimension" floats pointed to by a
@@ -526,7 +552,8 @@ bool check_dead_robots() {
 
     dolog("  check_dead_robots - begin");
 
-    double current_time = ros::Time::now().toSec();
+    //double current_time = ros::Time::now().toSec();
+    double current_time = n_ptr->now().seconds();
     bool r=false;
     for (size_t i=0; i<teamsize; i++) {
       double l = get_last_goal_reached(i);
@@ -556,7 +583,8 @@ void update_stats(int id_robot, int goal) {
 
     
 //   printf("last_visit [%d] = %.1f\n", goal, last_visit [goal]);
-     double current_time = ros::Time::now().toSec();
+     //double current_time = ros::Time::now().toSec();
+     double current_time = n_ptr->now().seconds();
 
     printf("Robot %d reached goal %d (current time: %.2f, alg: %s, nav: %s)\n", id_robot, goal, current_time, algorithm.c_str(), nav_mod.c_str());
             
@@ -640,11 +668,16 @@ int main(int argc, char** argv){  //pass TEAMSIZE GRAPH ALGORITHM
   //ex: "rosrun patrolling_sim monitor maps/example/example.graph MSP 2"
   
 //   uint teamsize;
+  //ros::init(argc, argv, "monitor");
+  rclcpp::init(argc,argv);
+  //ros::NodeHandle nh;
+  n_ptr = rclcpp::Node::make_shared("monitor");
+
   char teamsize_str[3];
   teamsize = atoi(argv[3]);
   
   if ( teamsize >= NUM_MAX_ROBOTS || teamsize <1 ){
-    ROS_INFO("The Teamsize must be an integer number between 1 and %d", NUM_MAX_ROBOTS);
+    RCLCPP_INFO(n_ptr->get_logger(), "The Teamsize must be an integer number between 1 and %d", NUM_MAX_ROBOTS);
     return 0;
   }else{
     strcpy (teamsize_str, argv[3]); 
@@ -772,14 +805,15 @@ int main(int argc, char** argv){  //pass TEAMSIZE GRAPH ALGORITHM
 #endif
     
   //Wait for all robots to connect! (Exchange msgs)
-  ros::init(argc, argv, "monitor");
-  ros::NodeHandle nh;
   
   //Subscribe "results" from robots
-  results_sub = nh.subscribe("results", 100, resultsCB);   
+  //results_sub = nh.subscribe("results", 100, resultsCB);   
+  results_sub = n_ptr->create_subscription<std_msgs::msg::Int16MultiArray>("results",100,resultsCB);
   
   //Publish data to "results"
-  results_pub = nh.advertise<std_msgs::Int16MultiArray>("results", 100);
+  //results_pub = nh.advertise<std_msgs::msg::Int16MultiArray>("results", 100);
+  results_pub = n_ptr->create_publisher<std_msgs::msg::Int16MultiArray>("results",100);
+  GotoStartPosMethod = n_ptr->create_client<patrolling_sim_msgs::srv::GoToStartPosSrv>("go_to_start_pos_srv");
   
 #if EXTENDED_STAGE  
   screenshot_pub = nh.advertise<std_msgs::String>("/stageGUIRequest", 100);
@@ -787,60 +821,92 @@ int main(int argc, char** argv){  //pass TEAMSIZE GRAPH ALGORITHM
 
   double duration = 0.0, real_duration = 0.0;
   
-  ros::Rate loop_rate(30); //0.033 seconds or 30Hz
+  rclcpp::Rate loop_rate(30); //0.033 seconds or 30Hz
   
-  nh.setParam("/simulation_running", "true");
-  nh.setParam("/simulation_abort", "false");
-  
-  if(ros::service::exists("/GotoStartPosSrv", false)){ //see if service has been advertised or not
+  //nh.setParam("/simulation_running", "true");
+  n_ptr->set_parameter(rclcpp::Parameter("/simulation_running","true"));
+  //nh.setParam("/simulation_abort", "false");
+  n_ptr->set_parameter(rclcpp::Parameter("/simulation_abort", "false"));
+
+  //if(ros::service::exists("/GotoStartPosSrv", false)){ //see if service has been advertised or not
+  if(GotoStartPosMethod->wait_for_service(1s)){ //see if service has been advertised or not
        goto_start_pos = true;  //if service exists: robots need to be sent to starting positions
-       ROS_INFO("/GotoStartPosSrv is advertised. Robots will be sent to starting positions.");
+       RCLCPP_INFO(n_ptr->get_logger(), "/GotoStartPosSrv is advertised. Robots will be sent to starting positions.");
   }else{
-      ROS_WARN("/GotoStartPosSrv does not exist. Assuming robots are already at starting positions.");
+      RCLCPP_WARN(n_ptr->get_logger(), "/GotoStartPosSrv does not exist. Assuming robots are already at starting positions.");
   }
-    
-  double current_time = ros::Time::now().toSec();
+
+  rclcpp::Parameter goal_reached_wait_param = rclcpp::Parameter();
+  rclcpp::Parameter comm_delay_param = rclcpp::Parameter();
+  rclcpp::Parameter lost_message_rate_param = rclcpp::Parameter();
+  rclcpp::Parameter initial_positions_param = rclcpp::Parameter();
+  rclcpp::Parameter nav_mod_param = rclcpp::Parameter();
+  rclcpp::Parameter algparams_param = rclcpp::Parameter();
+
+  //double current_time = ros::Time::now().toSec();
+  double current_time = n_ptr->now().seconds();
   
     // read parameters
-    if (! ros::param::get("/goal_reached_wait", goal_reached_wait)) {
+    //if (! ros::param::get("/goal_reached_wait", goal_reached_wait)) {
+    if (!n_ptr->get_parameter("/goal_reached_wait",goal_reached_wait_param)){
       goal_reached_wait = 0.0;
-      ROS_WARN("Cannot read parameter /goal_reached_wait. Using default value 0.0!");
+      RCLCPP_WARN(n_ptr->get_logger(), "Cannot read parameter /goal_reached_wait. Using default value 0.0!");
+    }else{
+      goal_reached_wait = goal_reached_wait_param.get_value<double>();
+      RCLCPP_INFO(n_ptr->get_logger(), "Parameter goal_reached_wait set!");
     }
-
-    if (! ros::param::get("/communication_delay", comm_delay)) {
+    
+    //if (! ros::param::get("/communication_delay", comm_delay)) {
+    if (!n_ptr->get_parameter("/communication_delay", comm_delay_param)){
       comm_delay = 0.0;
-      ROS_WARN("Cannot read parameter /communication_delay. Using default value 0.0!");
-    } 
+      RCLCPP_WARN(n_ptr->get_logger(), "Cannot read parameter /communication_delay. Using default value 0.0!");
+    }else{
+      comm_delay = comm_delay_param.get_value<double>();
+      RCLCPP_INFO(n_ptr->get_logger(), "Parameter /communication delay set!");
+    }
 
-    if (! ros::param::get("/lost_message_rate", lost_message_rate)) {
+    //if (! ros::param::get("/lost_message_rate", lost_message_rate)) {
+    if (!n_ptr->get_parameter("/lost_message_rate", lost_message_rate_param)){
       lost_message_rate = 0.0;
-      ROS_WARN("Cannot read parameter /lost_message_rate. Using default value 0.0!");
+      RCLCPP_WARN(n_ptr->get_logger(), "Cannot read parameter /lost_message_rate. Using default value 0.0!");
+    }else{
+      lost_message_rate = lost_message_rate_param.get_value<double>();
+      RCLCPP_INFO(n_ptr->get_logger(), "Parameter lost_message_rate set!");
     }
 
-    if (! ros::param::get("/initial_positions", initial_positions)) {
+    //if (! ros::param::get("/initial_positions", initial_positions)) {
+    if (!n_ptr->get_parameter("/initial_positions", initial_positions_param)){
       initial_positions = "default";
-      ROS_WARN("Cannot read parameter /initial_positions. Using default value '%s'!", initial_positions.c_str());
+      RCLCPP_WARN(n_ptr->get_logger(), "Cannot read parameter /initial_positions. Using default value '%s'!", initial_positions.c_str());
+    }else{
+      initial_positions = initial_positions_param.get_value<std::string>();
+      RCLCPP_INFO(n_ptr->get_logger(), "Parameter /initial_positions set!");
     }
 
-    if (! ros::param::get("/navigation_module", nav_mod)) {
-      ROS_WARN("Cannot read parameter /navigation_module. Using default value 'ros'!");
+
+    //if (! ros::param::get("/navigation_module", nav_mod)) {
+    if (!n_ptr->get_parameter("/navigation_module", nav_mod_param)){
+      RCLCPP_WARN(n_ptr->get_logger(), "Cannot read parameter /navigation_module. Using default value 'ros'!");
       nav_mod = "ros";
+    }else{
+      nav_mod = nav_mod_param.get_value<std::string>();
+      RCLCPP_INFO(n_ptr->get_logger(), "Parameter /nav_mod set!");
     }
-
 
   // mutex for accessing last_goal_reached vector
   pthread_mutex_init(&lock_last_goal_reached, NULL);
 
 
 
-  while( ros::ok() ){
+  while( rclcpp::ok() ){
     
     dolog("main loop - begin");
 
     if (!initialize){  //check if msg is goal or interference -> compute necessary results.
             
       // check time
-      double report_time = ros::Time::now().toSec();
+      //double report_time = ros::Time::now().toSec();
+      double report_time = n_ptr->now().seconds();
       
       // printf("### report time=%.1f  last_report_time=%.1f diff = %.1f\n",report_time, last_report_time, report_time - last_report_time);
       
@@ -852,15 +918,24 @@ int main(int argc, char** argv){  //pass TEAMSIZE GRAPH ALGORITHM
 #else
       timeout_write_results = (report_time - last_report_time > TIMEOUT_WRITE_RESULTS);
 #endif
-      
+       
       if ((patrol_cnt == complete_patrol) || timeout_write_results){ 
 
         dolog("main loop - write results begin");
 
         if (complete_patrol==1) {
-  	        ros::param::get("/algorithm_params", algparams);
-            if (! ros::param::get("/goal_reached_wait", goal_reached_wait))
-                goal_reached_wait = 0.0;
+            n_ptr->get_parameter("/algorithm_params",algparams_param);
+            algparams = algparams_param.get_value<std::string>();
+  	        //ros::param::get("/algorithm_params", algparams);
+            //if (! ros::param::get("/goal_reached_wait", goal_reached_wait))
+             //   goal_reached_wait = 0.0;
+            if (!n_ptr->get_parameter("/goal_reached_wait",goal_reached_wait_param)){
+              goal_reached_wait = 0.0;
+              RCLCPP_WARN(n_ptr->get_logger(), "Cannot read parameter /goal_reached_wait. Using default value 0.0!");
+            }else{
+              goal_reached_wait = goal_reached_wait_param.get_value<double>();
+              RCLCPP_INFO(n_ptr->get_logger(), "Parameter goal_reached_wait set!");
+            }
         }
 
         // write results every time a patrolling cycle is finished.
@@ -987,15 +1062,19 @@ int main(int argc, char** argv){  //pass TEAMSIZE GRAPH ALGORITHM
 
     } // if ! initialize  
     
-    current_time = ros::Time::now().toSec();
-    ros::spinOnce();
+    //current_time = ros::Time::now().toSec();
+    //ros::spinOnce();
+    current_time = n_ptr->now().seconds();
+    rclcpp::spin_some(n_ptr);
+
     loop_rate.sleep();
 
     dolog("main loop - end");
         
   } // while ros ok
 
-  ros::shutdown();
+  //ros::shutdown();
+  rclcpp::shutdown();
 
   fclose(idlfile);
   fclose(resultstimecsvfile);
