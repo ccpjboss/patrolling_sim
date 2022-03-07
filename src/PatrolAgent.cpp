@@ -623,9 +623,10 @@ void PatrolAgent::goalDoneCallback(const rclcpp_action::ClientGoalHandle<nav2_ms
             char srvname[80];
             
             if(ID_ROBOT<=-1){
-                sprintf(srvname,"/move_base/clear_costmaps/local_costmap/clear_entirely_local_costmap");
+                //sprintf(srvname,"/move_base/clear_costmaps/local_costmap/clear_entirely_local_costmap");
+                sprintf(srvname,"/local_costmap/clear_entirely_local_costmap");
             }else{
-                sprintf(srvname,"/robot_%d/move_base/clear_costmaps/local_costmap/clear_entirely_local_costmap",ID_ROBOT);
+                sprintf(srvname,"/robot_%d/local_costmap/clear_entirely_local_costmap",ID_ROBOT);
             }
             
             //ros::NodeHandle n;
@@ -648,13 +649,13 @@ void PatrolAgent::goalDoneCallback(const rclcpp_action::ClientGoalHandle<nav2_ms
             if(rclcpp::spin_until_future_complete(node_client,result) == rclcpp::FutureReturnCode::SUCCESS){
                 RCLCPP_INFO(this->get_logger(),"Costmaps cleared.\n");
             }else{
-                RCLCPP_ERROR(this->get_logger(),"Failed to call service move_base/clear_costmaps");
+                RCLCPP_ERROR(this->get_logger(),"Failed to call service nav2/clear_costmaps");
             }
             /*if (client.call(srv)) {
                 RCLCPP_INFO(this->get_logger(),"Costmaps cleared.\n");
             }
             else {
-                RCLCPP_ERROR(this->get_logger(),"Failed to call service move_base/clear_costmaps");
+                RCLCPP_ERROR(this->get_logger(),"Failed to call service nav2/clear_costmaps");
             }*/
 
             RCLCPP_INFO(this->get_logger(),"Resend Goal!");

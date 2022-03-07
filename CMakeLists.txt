@@ -5,9 +5,9 @@ project(patrolling_sim_ros2)
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
+#if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+#  add_compile_options(-Wall -Wextra -Wpedantic)
+#endif()
 
 
 ## Find catkin macros and libraries
@@ -105,33 +105,32 @@ add_library(PatrolAgent
             src/algorithms.cpp
             src/config.cpp)
 
-target_include_directories(PatrolAgent PUBLIC
-            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-            "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
-            "$<INSTALL_INTERFACE:include>")      
+#target_include_directories(PatrolAgent PUBLIC
+#            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+#            "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+#            "$<INSTALL_INTERFACE:include>")      
 
 ament_target_dependencies(PatrolAgent "rclcpp" "ament_index_cpp" 
-  "nav2_msgs" "rclcpp_action" "tf2_ros" "nav_msgs" "std_srvs" "tf2_geometry_msgs"
-  "tf2")
+  "nav2_msgs" "rclcpp_action" "tf2_ros" "nav_msgs" "std_srvs" "tf2_geometry_msgs" "tf2")
 
-install(
-  TARGETS PatrolAgent EXPORT PatrolAgent
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin
-)
+#install(
+#  TARGETS PatrolAgent EXPORT PatrolAgent
+#  ARCHIVE DESTINATION lib
+#  LIBRARY DESTINATION lib
+#  RUNTIME DESTINATION bin
+#)
 
 # Declare a cpp library
 add_library(SSIPatrolAgent 
             src/SSIPatrolAgent.cpp
             src/algorithms.cpp)
             
-ament_target_dependencies(SSIPatrolAgent rclcpp)
+ament_target_dependencies(SSIPatrolAgent "rclcpp")
 
 include_directories(src)
-ament_export_include_directories(include)
-ament_export_libraries(PatrolAgent)
-ament_export_targets(PatrolAgent)
+#ament_export_include_directories(include)
+#ament_export_libraries(PatrolAgent)
+#ament_export_targets(PatrolAgent)
 
 
 
@@ -267,10 +266,10 @@ ament_target_dependencies(GoToStartPos rclcpp rclcpp_action nav2_msgs tf2_ros ge
 #   LIBRARY DESTINATION lib
 #   RUNTIME DESTINATION bin
 # )
-install(
-  DIRECTORY include/
-  DESTINATION include
-)
+#install(
+#  DIRECTORY include/
+#  DESTINATION include
+#)
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/
 #   DESTINATION include/${PROJECT_NAME}
@@ -323,5 +322,11 @@ ament_export_dependencies(tf2_geometry_msgs)
 ament_export_dependencies(stage_ros2)
 ament_export_dependencies(std_msgs)
 ament_export_dependencies(std_srvs)
+
+# Install launch files.
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
 
 ament_package()
