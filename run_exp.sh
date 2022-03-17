@@ -16,8 +16,8 @@
 # CUSTOM_STAGE: flag if custom version of Stage is used: true, false
 # SPEEDUP: simulator speedup (if Custom Stage is used)
 
-MAP=DISlabs
-NROBOTS=8
+MAP=1r5
+NROBOTS=1
 INITPOS=default
 ALG=DTAP
 LOC=AMCL

@@ -16,7 +16,8 @@ import datetime
 import rospkg
 
 import os
-dirname = rospkg.RosPack().get_path('patrolling_sim')
+#dirname = rospkg.RosPack().get_path('patrolling_sim_ros2')
+dirname = '.'
 
 Alg_names = [ 
         [ 'RAND', 'Random' ],
@@ -76,7 +77,7 @@ def loadInitPoses():
 
 # get ROS time from /clock topic
 def getROStime():
-    os.system("rostopic echo -n 1 /clock > rostime.txt")
+    os.system("ros2 topic echo -n 1 /clock > rostime.txt")
     f = open(dirname+"/rostime.txt",'r')
     t = 0
     for line in f:
@@ -87,7 +88,7 @@ def getROStime():
 
 # get running simulation flag from /simulation_running param
 def getSimulationRunning():
-    os.system("rosparam get /simulation_running > simrun.txt")
+    os.system("ros2 param get /monitor /simulation_running > simrun.txt")
     f = open(dirname+"/simrun.txt",'r')
     t = True
     line = f.readline();
@@ -129,61 +130,49 @@ def run_experiment(MAP, NROBOTS, INITPOS, ALG_SHORT, LOC_MODE, NAV_MODULE, GWAIT
 
     iposes = initPoses[scenario.lower()]
     print(scenario,'   ',iposes)
-    
-    if (TERM == 'xterm'):
-        roscore_cmd = 'xterm -e roscore &'
-    else:
-        roscore_cmd = 'gnome-terminal -e "bash -c \'roscore\'" &'
-    print(roscore_cmd)
 
-    os.system(roscore_cmd)
-    os.system('sleep 3')
-    os.system('rosparam set /use_sim_time true')
-    os.system("rosparam set /goal_reached_wait "+GWAIT)
-    os.system("rosparam set /communication_delay "+str(COMMDELAY))
-#    os.system("rosparam set /lost_message_rate "+LOSTMSGRATE)
-    os.system("rosparam set /navigation_module "+NAV_MODULE)
-    os.system("rosparam set /initial_positions "+INITPOS)
-
-    cmd = './setinitposes.py '+MAP+' "'+iposes+'"'
+    cmd = './setinitposes_stage.py '+MAP+' "'+iposes+'"'
     os.system(cmd)
     print(cmd)
-    os.system('sleep 1')
 
-    cmd_monitor = 'rosrun patrolling_sim monitor '+MAP+' '+ALG_SHORT+' '+NROBOTS  
-    custom_stage = ''
-    if (CUSTOM_STAGE=="true"):
-      custom_stage = ' custom_stage:=true'
-    cmd_stage = 'roslaunch patrolling_sim map.launch map:='+MAP+custom_stage
-    if (os.getenv('ROS_DISTRO')=='groovy'):
-      cmd_stage = cmd_stage + " stage_pkg:=stage"
+    os.system('sleep 3')
+    #os.system('rosparam set /use_sim_time true')
+    #os.system("rosparam set /goal_reached_wait "+GWAIT)
+    #os.system("rosparam set /communication_delay "+str(COMMDELAY))
+    #os.system("rosparam set /lost_message_rate "+LOSTMSGRATE)
+    #os.system("rosparam set /navigation_module "+NAV_MODULE)
+    #os.system("rosparam set /initial_positions "+INITPOS)
+
+    cmd_monitor = 'ros2 run patrolling_sim_ros2 monitor '+MAP+' '+ALG_SHORT+' '+NROBOTS  
     print(cmd_monitor)
+
+    cmd_stage = 'ros2 launch patrolling_sim_ros2 map.launch.py map:='+MAP
     print(cmd_stage)
+
     if (TERM == 'xterm'):
         os.system('xterm -e  "'+cmd_monitor+'" &') 
         os.system('xterm -e  "'+cmd_stage+'" &')
     else: 
         os.system('gnome-terminal --tab -e  "bash -c \''+cmd_monitor+'\'" --tab -e "bash -c \''+cmd_stage+'\'" &')
+    os.system('sleep 1')
+
+    cmd_poses = 'ros2 param set /monitor /initial_pos "'+iposes+'"'
+    print(cmd_poses_monitor)
+    os.system(cmd)
     
     os.system('sleep 3')
     
     # Start robots
     if (LOC_MODE == 'AMCL'):
-        robot_launch = 'robot.launch'
+        robot_launch = 'robot.launch.py'
     else:
         robot_launch = 'robot_fake_loc.launch'
     
     gcmd = 'gnome-terminal '
     for i in range(0,int(NROBOTS)):
         print("Run robot ",i)
-        cmd = 'bash -c \'roslaunch patrolling_sim '+robot_launch+' robotname:=robot_'+str(i)+' mapname:='+MAP+' '
+        cmd = 'bash -c \'ros2 launch patrolling_sim_ros2 '+robot_launch+' robotname:=robot_'+str(i)+' map_path:='+MAP+' n_robots:='+NROBOTS
         
-        # Set navigation modules
-        if (NAV_MODULE=="ros"):
-           cmd = cmd + ' use_amcl:=true use_move_base:=true '
-        elif (NAV_MODULE=="spqrel_navigation"):
-           cmd = cmd + ' use_amcl:=false use_move_base:=false use_srrg_localizer:=true use_spqrel_planner:=true '
-           
         cmd = cmd + "'"
         print(cmd)
         if (TERM == 'xterm'):
@@ -201,14 +190,14 @@ def run_experiment(MAP, NROBOTS, INITPOS, ALG_SHORT, LOC_MODE, NAV_MODULE, GWAIT
     for i in range(0,int(NROBOTS)):
         print("Run patrol robot ",i)
         if (ALG_SHORT=='MSP'):
-            cmd = 'bash -c \'rosrun patrolling_sim '+ALG+' __name:=patrol_robot'+str(i)+' '+MAP+' '+str(i)+' MSP/'+MAP+'/'+MAP+'_'+str(NROBOTS)+'_'+str(i)+' '+'\''
+            cmd = 'bash -c \'ros2 run patrolling_sim_ros2 '+ALG+' __name:=patrol_robot'+str(i)+' '+MAP+' '+str(i)+' MSP/'+MAP+'/'+MAP+'_'+str(NROBOTS)+'_'+str(i)+' '+'\''
         elif (ALG_SHORT=='GBS' or ALG_SHORT=='SEBS' or ALG_SHORT=='CBLS'):
-            cmd = 'bash -c \'rosrun patrolling_sim '+ALG+' __name:=patrol_robot'+str(i)+' '+MAP+' '+str(i)+' '+str(NROBOTS)+'\''
+            cmd = 'bash -c \'ros2 run patrolling_sim_ros2 '+ALG+' __name:=patrol_robot'+str(i)+' '+MAP+' '+str(i)+' '+str(NROBOTS)+'\''
         else:
             now = datetime.datetime.now()
             dateString = now.strftime("%Y-%m-%d-%H:%M")
             #cmd = 'bash -c \'rosrun patrolling_sim '+ALG+' __name:=patrol_robot'+str(i)+' '+MAP+' '+str(i)+' > logs/'+ALG+'-'+dateString+'-robot'+str(i)+'.log \''
-            cmd = 'bash -c \'rosrun patrolling_sim '+ALG+' __name:=patrol_robot'+str(i)+' '+MAP+' '+str(i)+'\''
+            cmd = 'bash -c \'ros2 run patrolling_sim_ros2 '+ALG+' __name:=patrol_robot'+str(i)+' '+MAP+' '+str(i)+'--ros-args -p initial_pos:="'+iposes+'"''\''
         print(cmd)
         if (TERM == 'xterm'):
 	        os.system('xterm -e  "'+cmd+'" &')
@@ -220,9 +209,6 @@ def run_experiment(MAP, NROBOTS, INITPOS, ALG_SHORT, LOC_MODE, NAV_MODULE, GWAIT
         os.system(gcmd)
     os.system('sleep '+NROBOTS)
 
-    print("Stage simulator footprints and speedup")
-    os.system('rostopic pub /stageGUIRequest std_msgs/String "data: \'footprints\'"  --once')
-    os.system('rostopic pub /stageGUIRequest std_msgs/String "data: \'speedup_%.1f\'"  --once' %(SPEEDUP))
     #os.system('rm ~/.ros/stage-000003.png')
 
     now = datetime.datetime.now()
@@ -231,12 +217,12 @@ def run_experiment(MAP, NROBOTS, INITPOS, ALG_SHORT, LOC_MODE, NAV_MODULE, GWAIT
     print("Experiment started at ",strinittime)
     # wait for termination
     run = True
-    while (run):
-        t = getROStime()
+    #while (run):
+    #    t = getROStime()
         #print "Elapsed time: ",t," sec Timeout = ",TIMEOUT
-        if ((TIMEOUT>0 and t>TIMEOUT) or (not getSimulationRunning())):        
-            run = False;
-        os.system('sleep 1')
+    #    if ((TIMEOUT>0 and t>TIMEOUT) or (not getSimulationRunning())):        
+    #        run = False;
+    #    os.system('sleep 1')
 
     #print "Taking a screenshot..."
     #os.system('rostopic pub /stageGUIRequest std_msgs/String "data: \'screenshot\'"  --once')
@@ -388,7 +374,7 @@ class DIP(tk.Frame):
       self.parent.destroy()
       
     def kill_demo(self):
-      os.system("rosparam set /simulation_running false")
+      os.system("ros2 param set /monitor /simulation_running false")
       
       
     def saveConfigFile(self):

@@ -11,3 +11,9 @@ simrun.txt
 experiments.txt
 .vscode/*
 src/patrolling_sim_ros2.code-workspace
+
+launch_ros1/
+
+setinitposes copy.py
+
+start_experiment copy.py

@@ -1,5 +1,5 @@
 #/bin/bash
-rosnode kill -a
+#rosnode kill -a
 printf "Cleaning..."
 printf "5..."
 sleep 1

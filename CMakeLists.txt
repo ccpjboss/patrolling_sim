@@ -324,9 +324,12 @@ ament_export_dependencies(std_msgs)
 ament_export_dependencies(std_srvs)
 
 # Install launch files.
-install(DIRECTORY
-  launch
-  DESTINATION share/${PROJECT_NAME}/
-)
+install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
+install(TARGETS monitor Conscientious_Reactive Heuristic_Conscientious_Reactive
+  Conscientious_Cognitive Cyclic MSP GBS SEBS CBLS Random DTAGreedy
+  DTASSI DTASSIPart GoToStartPos DESTINATION lib/${PROJECT_NAME})
+install(DIRECTORY params DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY maps DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY rviz DESTINATION share/${PROJECT_NAME})
 
 ament_package()
