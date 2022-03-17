@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <launch>
-  <arg name="map" default="grid" />
+  <arg name="map" default="1r5" />
   <arg name="stage_pkg" default="stage_ros2"/>     <!-- stage_pkg:=stage for ROS Groovy -->
 
   <node name="stage" pkg="$(var stage_pkg)" exec="stage_ros2" output="screen">
