@@ -49,7 +49,6 @@ uint reward_count = 0;
 
 using namespace std;
 
-
 /*inline long double log2_new(const long double x){
     return  log(x) * M_LOG2E;
 }*/
@@ -2953,7 +2952,7 @@ void update_likelihood_old (reinforcement_learning RL, double *real_histogram, d
   int hist_idx_next_vertex = get_hist_idx_from_edge_cost (hist_sort, size_hist, edge_cost);
   //ROS_INFO("hist_idx_next_vertex = %d",hist_idx_next_vertex);
   
-  RCLCPP_INFO(rclcpp::get_logger("algorithms"),"Punish/Reward: %f", ((double)SIGN)*(1.0 - RL.entropy) );
+  //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"Punish/Reward: %f", ((double)SIGN)*(1.0 - RL.entropy) );
   
   //ROS_INFO("Before: real_histogram [hist_idx_next_vertex] = %f", real_histogram [hist_idx_next_vertex]);
   
@@ -2989,7 +2988,7 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
  
   int id_next_vertex = pertence_uint_idx (RL.next_vertex, RL.id_neighbors, RL.num_possible_neighs);
   
-  RCLCPP_INFO(rclcpp::get_logger("algorithms"),"id_next_vertex = %d", id_next_vertex);
+  //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"id_next_vertex = %d", id_next_vertex);
   
   if (id_next_vertex<0){
     RCLCPP_WARN(rclcpp::get_logger("algorithms"),"Couldn't find id_next_vertex in update_likelihood()");
@@ -3020,20 +3019,20 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
     //  node_count_tab[i] = (double) RL.node_count[i] / (double) 2*vertex_web[ RL.id_neighbors[i] ].num_neigh;
     //}
     
-    RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_count (%d) = %d", RL.id_neighbors[i], RL.node_count[i] );
-    RCLCPP_INFO(rclcpp::get_logger("algorithms"),"degree (%d) = %d", RL.id_neighbors[i], vertex_web[RL.id_neighbors[i]].num_neigh);
-    RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_count_norm (%d) = %f",RL.id_neighbors[i], node_count_tab[i]);    
+    //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_count (%d) = %d", RL.id_neighbors[i], RL.node_count[i] );
+    //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"degree (%d) = %d", RL.id_neighbors[i], vertex_web[RL.id_neighbors[i]].num_neigh);
+    //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_count_norm (%d) = %f",RL.id_neighbors[i], node_count_tab[i]);    
     
   }
   
   //uint node_max = get_max(RL.node_count, RL.num_possible_neighs);
   double node_max = get_max_dbl(node_count_tab, RL.num_possible_neighs);
-  RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_max_norm = %f",node_max); 
+  //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_max_norm = %f",node_max); 
 
   //ROS_INFO("node_max = %d", node_max);
   
   double node_min = get_min_dbl(node_count_tab, RL.num_possible_neighs);
-  RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_min_norm = %f",node_min); 
+  //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_min_norm = %f",node_min); 
   //ROS_INFO("node_min = %d", node_min);
   
   /*if (node_count == node_max && node_max > node_min){
@@ -3043,17 +3042,17 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
   if (node_count == node_max){ 
    SIGN = -5;
    strong_reward = -1.0;
-   RCLCPP_INFO(rclcpp::get_logger("algorithms"),"STRONG PUNISHMENT!!! node_count = node_max, SIGN = %d",SIGN);
+   //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"STRONG PUNISHMENT!!! node_count = node_max, SIGN = %d",SIGN);
   }
   
   if (node_count == node_min){
    SIGN = 1;
-   RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_count = node_min, SIGN = %d",SIGN); 
+   //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_count = node_min, SIGN = %d",SIGN); 
   }  
   
   if (node_min == node_max){
    SIGN = 0;   
-   RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_max = node_min, SIGN = %d",SIGN);
+   //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_max = node_min, SIGN = %d",SIGN);
    
   }else{
     
@@ -3061,12 +3060,12 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
    if (RL.node_count[id_next_vertex] > 0 && RL.node_count[id_next_vertex] == minimum_global_node_count){ 
      SIGN = 5;	/**Dimension this as a parameter (alfa) in the reward funcion **/
      strong_reward = 1.0;
-     RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_count = minimum_global_node_count, SIGN = %d",SIGN);
+     //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_count = minimum_global_node_count, SIGN = %d",SIGN);
      RCLCPP_WARN(rclcpp::get_logger("algorithms"),"STRONG REWARD!!!!!!!!!!! Vertex with minimum global node count"); 
    }   
     
    if(SIGN==0){
-     RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_max > node_count >= node_min, SIGN = %d",SIGN);
+     //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"node_max > node_count >= node_min, SIGN = %d",SIGN);
    }
   }
   
@@ -3085,13 +3084,13 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
       }
     }
     
-    RCLCPP_INFO(rclcpp::get_logger("algorithms"),"max_idleness = %f", max_idleness);
-    RCLCPP_INFO(rclcpp::get_logger("algorithms"),"idleness_old(v=%d) = %f", RL.next_vertex, RL.idleness_old[id_next_vertex]);
+    //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"max_idleness = %f", max_idleness);
+    //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"idleness_old(v=%d) = %f", RL.next_vertex, RL.idleness_old[id_next_vertex]);
     
     //doesn't have the highest idleness - bad decision: negative reward
     if (max_idleness > RL.idleness_old[id_next_vertex]){
      SIGN = -1; /**alfa = 100**/
-     RCLCPP_INFO(rclcpp::get_logger("algorithms"),"V=%d Doesn't have the highest idleness - bad decision, SIGN = %d",RL.next_vertex, SIGN);
+     //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"V=%d Doesn't have the highest idleness - bad decision, SIGN = %d",RL.next_vertex, SIGN);
      
     }/*else{ //se idleness do seleccionado for 2X maior q idleness do 2º maior (Reward+)
 
@@ -3183,7 +3182,7 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
   
   //double reward_inc = ((double)SIGN*SCALE_FACTOR)*(RL.entropy);
   RCLCPP_WARN(rclcpp::get_logger("algorithms"),"Punish/Reward: %f", reward_inc );  
-  RCLCPP_INFO(rclcpp::get_logger("algorithms"),"Before Update: real_histogram [hist_idx_next_vertex] = %f", real_histogram [hist_idx_next_vertex]);
+  //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"Before Update: real_histogram [hist_idx_next_vertex] = %f", real_histogram [hist_idx_next_vertex]);
   
   //Update histogram:
   real_histogram [hist_idx_next_vertex] += reward_inc;  
@@ -3203,7 +3202,7 @@ void update_likelihood (reinforcement_learning RL, double *real_histogram, uint 
     real_histogram [hist_idx_next_vertex] = 20.0;
   }  
   
-  RCLCPP_INFO(rclcpp::get_logger("algorithms"),"After Update (and truncation): real_histogram [hist_idx_next_vertex] = %f", real_histogram [hist_idx_next_vertex]);
+  //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"After Update (and truncation): real_histogram [hist_idx_next_vertex] = %f", real_histogram [hist_idx_next_vertex]);
     
 }
 
@@ -3451,7 +3450,7 @@ int learning_algorithm(uint current_vertex, vertex *vertex_web, double *instanta
     RL.current_vertex = current_vertex;
     int next_vertex; //result of the decision 
     
-    //ROS_INFO("current_vertex: %d", current_vertex);
+    //RCLCPP_INFO(rclcpp::get_logger("algoritms"),"current_vertex: %d", current_vertex);
 
     // FIRST STEP: FILTER POSSIBLE NEIGHBORS - REMOVE THOSE UNDER INTENTION OF OTHER ROBOTS 
     uint num_neighs = vertex_web[current_vertex].num_neigh;
@@ -3464,7 +3463,7 @@ int learning_algorithm(uint current_vertex, vertex *vertex_web, double *instanta
      for (i=0; i<num_neighs; i++){
 	  
       id_neigh = vertex_web[current_vertex].id_neigh[i];
-      //ROS_INFO("Possible Neighbor: %d", id_neigh);
+      //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"Possible Neighbor: %d", id_neigh);
       count = count_intention_cbls (id_neigh, tab_intention, nr_robots, id_robot);
 	  
       if (count==0){
@@ -3523,7 +3522,7 @@ int learning_algorithm(uint current_vertex, vertex *vertex_web, double *instanta
 	  //prior_denominator += instantaneous_idleness [ neighbors[i] ];
 	  prior_denominator += avg_idleness [ neighbors[i] ];
 	}	
-	//ROS_INFO("prior_denominator: %f", prior_denominator);  
+	//RCLCPP_INFO(rclcpp::get_logger("algorithms"),"prior_denominator: %f", prior_denominator);  
 	
       }else{	/** LOCAL LOOKAHEAD PRIOR **/
 	int j;
@@ -3545,7 +3544,7 @@ int learning_algorithm(uint current_vertex, vertex *vertex_web, double *instanta
 	      //ignore those intended by other robots
 	      if ( all_neigh_occupied == false && count == 0 ){
 		
-		//ROS_INFO("avg_idleness[v=%d(viz=%i)] = %f", id_neigh_scnd_layer, id_v, avg_idleness [id_neigh_scnd_layer]);
+		//RCLCPP_INFO(rclcpp::get_logger("algorithms"),"avg_idleness[v=%d(viz=%i)] = %f", id_neigh_scnd_layer, id_v, avg_idleness [id_neigh_scnd_layer]);
 
 		//save max avg idl among neighbors
 		if (avg_idleness [id_neigh_scnd_layer] > max_idl_scnd_layer [i]){
@@ -3558,18 +3557,18 @@ int learning_algorithm(uint current_vertex, vertex *vertex_web, double *instanta
 	  
 	  if (max_idl_scnd_layer[i]<=0.001){  //many robots may be near...
 	   prior_tab[i] = avg_idleness[id_v];
-	   //ROS_INFO("prior_tab [%d] = %f", i, prior_tab[i]);
+	   //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"prior_tab [%d] = %f", i, prior_tab[i]);
 	    
 	  }else{	    
-	    //ROS_INFO("avg_idleness[v=%d] = %f", id_v, avg_idleness[id_v]);
-	    //ROS_INFO("max_idl_scnd_layer = %f", max_idl_scnd_layer[i]);
+	    //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"avg_idleness[v=%d] = %f", id_v, avg_idleness[id_v]);
+	    //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"max_idl_scnd_layer = %f", max_idl_scnd_layer[i]);
 	    prior_tab [i] = (w_first_layer*avg_idleness[id_v]) + ((1.0-w_first_layer)*max_idl_scnd_layer[i]);
-	    //ROS_INFO("prior_tab [%d] = %f", i, prior_tab[i]);
+	    //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"prior_tab [%d] = %f", i, prior_tab[i]);
 	  }
 	  //calcular o denominador 
 	  prior_denominator += prior_tab [i];
 	}
-	//ROS_INFO("prior_denominator = %f", prior_denominator);
+	//RCLCPP_INFO(rclcpp::get_logger("algorithms"),"prior_denominator = %f", prior_denominator);
 	
 	
       } //else lookahead prior
@@ -3601,7 +3600,7 @@ int learning_algorithm(uint current_vertex, vertex *vertex_web, double *instanta
 	  }
 	}
 	
-	//ROS_INFO("Prior(v=%d) = %f", neighbors[i], prior);
+	//RCLCPP_INFO(rclcpp::get_logger("algorithms"),"Prior(v=%d) = %f", neighbors[i], prior);
 	
 	
 	//likelihood:
@@ -3626,8 +3625,8 @@ int learning_algorithm(uint current_vertex, vertex *vertex_web, double *instanta
 	
 	double likelihood = histogram[idx_edge];  // [0-1]
 	
-	//ROS_INFO("Edge (%d - %d) has idx %d", current_vertex, neighbors[i], idx_edge);
-	//ROS_INFO("Likelihood(v=%d, edge=%d) = %f", neighbors[i], idx_edge, likelihood);
+	//RCLCPP_INFO(rclcpp::get_logger("algorithms"),"Edge (%d - %d) has idx %d", current_vertex, neighbors[i], idx_edge);
+	//RCLCPP_INFO(rclcpp::get_logger("algorithms"),"Likelihood(v=%d, edge=%d) = %f", neighbors[i], idx_edge, likelihood);
 	
 	//posterior:
 	posterior_probability[i] = prior * likelihood;
@@ -3653,29 +3652,29 @@ int learning_algorithm(uint current_vertex, vertex *vertex_web, double *instanta
       // Normalize Posterior:      
       for (i=0; i<num_possible_neighs; i++){	
 	norm_posterior_probability[i] = posterior_probability[i] / posterior_sum;	
-	//ROS_INFO("PP(v=%d) = %f", neighbors[i], norm_posterior_probability[i]);
+	//RCLCPP_INFO(rclcpp::get_logger("algorithms"),"PP(v=%d) = %f", neighbors[i], norm_posterior_probability[i]);
 	entropy += norm_posterior_probability[i] * log2 (norm_posterior_probability[i]);	
       }
       
       /** CALCULATE DECISION ENTROPY **/
       entropy = -entropy;
-      //ROS_INFO("Decision Entropy = %f", entropy);
+      //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"Decision Entropy = %f", entropy);
       
       /** NORMALIZE ENTROPY ACCORDING TO NR# DECISIONS **/
       double equiv_prob = 1.0/(double)num_possible_neighs;
-      //ROS_INFO("equiv_prob = %f", equiv_prob);
+      //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"equiv_prob = %f", equiv_prob);
       double entropy_max = -((double)num_possible_neighs)*( equiv_prob * log2(equiv_prob) );      
-      //ROS_INFO("Max Entropy (%d decisions) = %f", num_possible_neighs, entropy_max);
+      //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"Max Entropy (%d decisions) = %f", num_possible_neighs, entropy_max);
       
       RL.entropy = entropy / entropy_max;
       
       if (RL.entropy > 1.0) {RL.entropy = 1.0;}
-      //ROS_INFO("Normalized Entropy = %f", RL.entropy);
+      //RCLCPP_INFO(rclcpp::get_logger("algorithms"),"Normalized Entropy = %f", RL.entropy);
       
       //there may be more than one "correct" decision: choose closer vertex
       if(hits>0){
 
-	//ROS_INFO("More than one possibility: Choose closer vertex");
+	//RCLCPP_INFO(rclcpp::get_logger("algorithms"),"More than one possibility: Choose closer vertex");
 	int possible_vertex = possibilities[0];
 	int id_neigh_possible_vertex = -1;	
 	      

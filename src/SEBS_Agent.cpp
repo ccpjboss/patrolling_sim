@@ -85,7 +85,7 @@ void SEBS_Agent::init(int argc, char** argv) {
   
   PatrolAgent::init(argc,argv);
   
-  NUMBER_OF_ROBOTS = atoi(argv[3]);
+  NUMBER_OF_ROBOTS = atoi(argv[4]);
   arrived=false;
   intention=false;
   
@@ -125,11 +125,12 @@ void SEBS_Agent::init(int argc, char** argv) {
 
   printf("G1 = %f, G2 = %f\n", G1, G2); 
   
-    std::stringstream paramss;
-    paramss << G1 << "," << G2;
-
-    auto param = rclcpp::Parameter("/algorithm_params",paramss.str());
-    this->set_parameter(param);
+  std::stringstream paramss;
+  paramss << G1 << "," << G2;
+  
+  n_ptr->declare_parameter("algorithm_params", rclcpp::PARAMETER_STRING);
+  rclcpp::Parameter param("algorithm_params", paramss.str());
+  n_ptr->set_parameter(param);
     
   //INITIALIZE tab_intention:
   tab_intention = new int[NUMBER_OF_ROBOTS];
@@ -144,11 +145,11 @@ void SEBS_Agent::processEvents() {
     
     if (arrived && NUMBER_OF_ROBOTS>1){ //a different robot arrived at a vertex: update idleness table and keep track of last vertices positions of other robots.
 
-        //ROS_INFO("Robot %d reached Goal %d.\n", robot_arrived, vertex_arrived);    
+        RCLCPP_INFO(n_ptr->get_logger(),"Robot %d reached Goal %d.\n", robot_arrived, vertex_arrived);    
 
         //Update Idleness Table:
         //double now = ros::Time::now().toSec();
-        double now = this->now().seconds();
+        double now = n_ptr->now().seconds();
                 
         for(int i=0; i<dimension; i++){
             if (i == vertex_arrived){
@@ -157,7 +158,7 @@ void SEBS_Agent::processEvents() {
             }           
             //actualizar instantaneous_idleness[dimension]
             instantaneous_idleness[i] = now - last_visit[i];      
-	    //ROS_INFO("idleness[%d] = %f", i, instantaneous_idleness[i]);
+	          RCLCPP_INFO(n_ptr->get_logger(),"idleness[%d] = %f", i, instantaneous_idleness[i]);
         }     
         
         arrived = false;
@@ -169,6 +170,7 @@ void SEBS_Agent::processEvents() {
         intention = false;
     }
     // ros::spinOnce();    
+    this->exec.spin_once();
 }
 
 int SEBS_Agent::compute_next_vertex() {
@@ -210,6 +212,8 @@ void SEBS_Agent::receive_results() {
 }
 
 int main(int argc, char** argv) {
+
+    rclcpp::init(argc, argv);
 
     SEBS_Agent agent;
     agent.init(argc,argv);    

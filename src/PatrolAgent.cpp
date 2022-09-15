@@ -56,7 +56,6 @@
 //#include <nav_msgs/Odometry.h>
 #include "nav_msgs/msg/odometry.hpp"
 //#include <std_srvs/Empty.h>
-#include "std_srvs/srv/empty.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 #include "tf2/utils.h"
 #include "nav2_msgs/srv/clear_entire_costmap.hpp"
@@ -69,7 +68,7 @@ using namespace std::placeholders;
 #define SIMULATE_FOREVER true //WARNING: Set this to false, if you want a finishing condition.
 
 //const std::string PS_path = ros::package::getPath("patrolling_sim"); 	//D.Portugal => get pkg path
-const std::string PS_path = ament_index_cpp::get_package_share_directory("patrolling_sim");
+const std::string PS_path = ament_index_cpp::get_package_share_directory("patrolling_sim_ros2");
 
 void PatrolAgent::init(int argc, char** argv) {
         /*
@@ -78,16 +77,20 @@ void PatrolAgent::init(int argc, char** argv) {
             argv[2]=grid
             argv[3]=ID_ROBOT
         */
-    
+    //rclcpp::init(argc, argv);  // will be replaced by __name:=XXXXXX
+    //ros::NodeHandle nh;
+    this->n_ptr = std::make_shared<rclcpp::Node>("patrol_agent");
+    this->exec.add_node(n_ptr);
+
     srand ( time(NULL) );
     
     //More than One robot (ID between 0 and 99)
     if ( atoi(argv[3])>NUM_MAX_ROBOTS || atoi(argv[3])<-1 ){
-        RCLCPP_INFO(this->get_logger(),"The Robot's ID must be an integer number between 0 an 99"); //max 100 robots 
+        RCLCPP_INFO(n_ptr->get_logger(),"The Robot's ID must be an integer number between 0 an 99"); //max 100 robots 
         return;
     }else{
         ID_ROBOT = atoi(argv[3]); 
-        //printf("ID_ROBOT = %d\n",ID_ROBOT); //-1 for 1 robot without prefix (robot_0)
+        printf("ID_ROBOT = %d\n",ID_ROBOT); //-1 for 1 robot without prefix (robot_0)
     }
     
     /** D.Portugal: needed in case you "rosrun" from another folder **/     
@@ -138,7 +141,7 @@ void PatrolAgent::init(int argc, char** argv) {
     /* Define Starting Vertex/Position (Launch File Parameters) */
 
     //ros::init(argc, argv, "patrol_agent");  // will be replaced by __name:=XXXXXX
-    rclcpp::init(argc, argv);  // will be replaced by __name:=XXXXXX
+    //rclcpp::init(argc, argv);  // will be replaced by __name:=XXXXXX
     //ros::NodeHandle nh;
     
     // wait a random time (avoid conflicts with other robots starting at the same time...)
@@ -151,13 +154,17 @@ void PatrolAgent::init(int argc, char** argv) {
     double initial_x, initial_y;
     std::vector<double> list;
     //nh.getParam("initial_pos", list);
-    this->get_parameter("initial_pos",list);
-    
+
+    n_ptr->declare_parameter<std::vector<double>>("initial_pos");
+    rclcpp::Parameter list_param = n_ptr->get_parameter("initial_pos");
+    list = list_param.as_double_array();
+
     if (list.empty()){
-     RCLCPP_ERROR(this->get_logger(),"No initial positions given: check \"initial_pos\" parameter.");
+     RCLCPP_ERROR(n_ptr->get_logger(),"No initial positions given: check \"initial_pos\" parameter.");
      rclcpp::shutdown();
      exit(-1);
     }
+    
        
     int value = ID_ROBOT;
     if (value == -1){value = 0;}
@@ -185,11 +192,12 @@ void PatrolAgent::init(int argc, char** argv) {
         
     //Publicar dados de "odom" para nó de posições
     //positions_pub = nh.advertise<nav_msgs::Odometry>("positions", 1); //only concerned about the most recent
-    positions_pub = this->create_publisher<nav_msgs::msg::Odometry>("positions",1);
+    positions_pub = n_ptr->create_publisher<nav_msgs::msg::Odometry>("/positions",1);
         
     //Subscrever posições de outros robots
     //positions_sub = nh.subscribe<nav_msgs::Odometry>("positions", 10, boost::bind(&PatrolAgent::positionsCB, this, _1));  
-    positions_sub = this->create_subscription<nav_msgs::msg::Odometry>("positions",10,std::bind(&PatrolAgent::positionsCB,this,std::placeholders::_1));
+    rclcpp::QoS policy = rclcpp::QoS(10);
+    positions_sub = n_ptr->create_subscription<nav_msgs::msg::Odometry>("/positions",policy,std::bind(&PatrolAgent::positionsCB,this,std::placeholders::_1));
 
     char string1[40];
     char string2[40];
@@ -199,37 +207,52 @@ void PatrolAgent::init(int argc, char** argv) {
         strcpy (string2,"cmd_vel"); //string = "cmd_vel"
         TEAMSIZE = 1;
     }else{ 
-        sprintf(string1,"robot_%d/odom",ID_ROBOT);
-        sprintf(string2,"robot_%d/cmd_vel",ID_ROBOT);
+        sprintf(string1,"/robot_%d/odom",ID_ROBOT);
+        sprintf(string2,"/robot_%d/cmd_vel",ID_ROBOT);
         TEAMSIZE = ID_ROBOT + 1;
     }   
 
     /* Set up listener for global coordinates of robots */
     //listener = new tf::TransformListener();
-    tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+    tf_buffer_ = std::make_unique<tf2_ros::Buffer>(n_ptr->get_clock());
     listener = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
     //Cmd_vel to backup:
     //cmd_vel_pub  = nh.advertise<geometry_msgs::Twist>(string2, 1);
-    cmd_vel_pub = this->create_publisher<geometry_msgs::msg::Twist>(string2,1);
+    cmd_vel_pub = n_ptr->create_publisher<geometry_msgs::msg::Twist>(string2,1);
     //Subscrever para obter dados de "odom" do robot corrente
     //odom_sub = nh.subscribe<nav_msgs::Odometry>(string1, 1, boost::bind(&PatrolAgent::odomCB, this, _1)); //size of the buffer = 1 (?)
-    odom_sub = this->create_subscription<nav_msgs::msg::Odometry>(string1,1,std::bind(&PatrolAgent::odomCB,this,_1));
+    odom_sub = n_ptr->create_subscription<nav_msgs::msg::Odometry>(string1,1,std::bind(&PatrolAgent::odomCB,this,_1));
+
+    if (ID_ROBOT == 0){
+      latency_pub = n_ptr->create_publisher<patrolling_sim_msgs::msg::Latency>(
+          "/latency_pong", 1);
+      latency_sub =
+          n_ptr->create_subscription<patrolling_sim_msgs::msg::Latency>(
+              "/latency_ping", 1, std::bind(&PatrolAgent::latencyCB, this, _1));
+    }
     
     //ros::spinOnce(); 
-    rclcpp::spin_some(this->get_node_base_interface());
+    this->exec.spin_some();
     
     //Publicar dados para "results"
     //results_pub = nh.advertise<std_msgs::Int16MultiArray>("results", 100);
-    results_pub = this->create_publisher<std_msgs::msg::Int16MultiArray>("results", 100);
+    results_pub = n_ptr->create_publisher<std_msgs::msg::Int16MultiArray>("/results", 100);
     // results_sub = nh.subscribe("results", 10, resultsCB); //Subscrever "results" vindo dos robots
     //results_sub = nh.subscribe<std_msgs::Int16MultiArray>("results", 100, boost::bind(&PatrolAgent::resultsCB, this, _1) ); //Subscrever "results" vindo dos robots
-    results_sub = this->create_subscription<std_msgs::msg::Int16MultiArray>("results", 100, std::bind(&PatrolAgent::resultsCB, this, _1) ); //Subscrever "results" vindo dos robots
+    results_sub = n_ptr->create_subscription<std_msgs::msg::Int16MultiArray>("/results", 100, std::bind(&PatrolAgent::resultsCB, this, _1) ); //Subscrever "results" vindo dos robots
 
     // last time comm delay has been applied
     //last_communication_delay_time = ros::Time::now().toSec();   
-    last_communication_delay_time = this->now().seconds();
+    last_communication_delay_time = n_ptr->now().seconds();
+    //this->exec.spin_some();
+    //exec.spin_some();
 
+    n_ptr->declare_parameter<double>("goal_reached_wait",0.0);
+    n_ptr->declare_parameter<double>("communication_delay",0.0);
+    n_ptr->declare_parameter<double>("lost_message_rate",0.0);
+    n_ptr->declare_parameter<string>("initial_positions","default");
+    
     readParams();
 }
     
@@ -241,61 +264,67 @@ void PatrolAgent::ready() {
     if(ID_ROBOT==-1){ 
         strcpy (move_string,"navigate_to_pose"); //string = "move_base
     }else{
-        sprintf(move_string,"robot_%d/navigate_to_pose",ID_ROBOT);
+        sprintf(move_string,"/robot_%d/navigate_to_pose",ID_ROBOT);
+        //sprintf(move_string,"/navigate_to_pose",ID_ROBOT);
     }
     
     //ac = new MoveBaseClient(move_string, true); 
-    this->ac = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(this,move_string);
+    this->ac = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(n_ptr,move_string);
     
     //wait for the action server to come up
     //while(!ac->waitForServer(ros::Duration(5.0))){
     while(!this->ac->wait_for_action_server(std::chrono::seconds(5))){
-        RCLCPP_INFO(this->get_logger(),"Waiting for the nav2 action server to come up");
+        RCLCPP_INFO(n_ptr->get_logger(),"Waiting for the nav2 action server to come up");
     } 
-    RCLCPP_INFO(this->get_logger(),"Connected with nav2 action server");    
+    RCLCPP_INFO(n_ptr->get_logger(),"Connected with nav2 action server");    
     
     initialize_node(); //announce that agent is alive
-    
+    //RCLCPP_INFO(n_ptr->get_logger(),"SUCCESS"); 
     //ros::Rate loop_rate(1); //1 sec
     rclcpp::Rate loop_rate(1); //1 sec
     
     /* Wait until all nodes are ready.. */
     while(initialize){
         //ros::spinOnce();
-        rclcpp::spin_some(this->get_node_base_interface());
+        // RCLCPP_INFO(n_ptr->get_logger(), "Waiting init...");
+        //exec.spin_some();
+        this->exec.spin_once();
         loop_rate.sleep();
     }    
-
 }
 
 
 void PatrolAgent::readParams() {
 
-    //if (! ros::param::get("/goal_reached_wait", goal_reached_wait)) {
-    if (! this->get_parameter("/goal_reached_wait", goal_reached_wait)) {
-      //goal_reached_wait = 0.0;
-      RCLCPP_WARN(this->get_logger(),"Cannot read parameter /goal_reached_wait. Using default value!");
-      //ros::param::set("/goal_reached_wait", goal_reached_wait);
+    if (! n_ptr->get_parameter("goal_reached_wait", goal_reached_wait)) {
+      goal_reached_wait = 0.0;
+      RCLCPP_WARN(n_ptr->get_logger(),"Cannot read parameter goal_reached_wait. Using default value!");
+    }else{
+        RCLCPP_INFO(n_ptr->get_logger(),"Parameter goal_reached_wait set to: %f",goal_reached_wait);
     }
 
-    if (! this->get_parameter("/communication_delay", communication_delay)) {
-      //communication_delay = 0.0;
-      RCLCPP_WARN(this->get_logger(),"Cannot read parameter /communication_delay. Using default value!");
-      //ros::param::set("/communication_delay", communication_delay);
-    } 
-
-    if (! this->get_parameter("/lost_message_rate", lost_message_rate)) {
-      //lost_message_rate = 0.0;
-      RCLCPP_WARN(this->get_logger(),"Cannot read parameter /lost_message_rate. Using default value!");
-      //ros::param::set("/lost_message_rate", lost_message_rate);
+    if (! n_ptr->get_parameter("communication_delay", communication_delay)) {
+      communication_delay = 0.0;
+      RCLCPP_WARN(n_ptr->get_logger(),"Cannot read parameter communication_delay. Using default value!");
+    }else{
+        RCLCPP_INFO(n_ptr->get_logger(),"Parameter communication_delay set to: %f",communication_delay);
     }
 
-    if (! this->get_parameter("/initial_positions", initial_positions)) {
-      //initial_positions = "default";
-      RCLCPP_WARN(this->get_logger(),"Cannot read parameter /initial_positions. Using default value '%s'!", initial_positions.c_str());
-      //ros::param::set("/initial_pos", initial_positions);
+    if (! n_ptr->get_parameter("lost_message_rate", lost_message_rate)) {
+      lost_message_rate = 0.0;
+      RCLCPP_WARN(n_ptr->get_logger(),"Cannot read parameter lost_message_rate. Using default value!");
+    }else{
+        RCLCPP_INFO(n_ptr->get_logger(),"Parameter lost_message_rate set to: %f",lost_message_rate);
     }
 
+    if (! n_ptr->get_parameter("initial_positions", initial_positions)) {
+      initial_positions = "default";
+      RCLCPP_WARN(n_ptr->get_logger(),"Cannot read parameter /initial_positions. Using default value '%s'!", initial_positions.c_str());
+    }else{
+      RCLCPP_INFO(n_ptr->get_logger(),"Parameter initial_positions set to %s", initial_positions.c_str());
+    }
+
+    //this->run();
 }
 
 void PatrolAgent::run() {
@@ -310,34 +339,43 @@ void PatrolAgent::run() {
     if (ID_ROBOT>-1){
              std::ostringstream id_string;
              id_string << ID_ROBOT;
-             mb_string = "robot_" + id_string.str() + "/";
+             mb_string = "/robot_" + id_string.str() + "/";
     }
+
     mb_string += "local_costmap/clear_entirely_local_costmap";
-    this->clear_client = this->create_client<nav2_msgs::srv::ClearEntireCostmap>(mb_string.c_str());
-    auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();
+    this->clear_client = n_ptr->create_client<nav2_msgs::srv::ClearEntireCostmap>(mb_string.c_str(),rmw_qos_profile_services_default);
 
-    while(!this->clear_client->wait_for_service(1s)){
-        if(!rclcpp::ok()){
-            RCLCPP_ERROR(this->get_logger(),"Interrupted...");
-            return ;
-        }
-        RCLCPP_INFO(this->get_logger(),"Service not available, waiting...");
+    auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();
+    while (!clear_client->wait_for_service(1s)) {
+      if (!rclcpp::ok()) {
+        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"),
+                     "Interrupted while waiting for the service. Exiting.");
+        return;
+      }
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"),
+                  "service not available, waiting again...");
+    }
+    RCLCPP_INFO(n_ptr->get_logger(),"Clear Costmap service available");
+
+    auto result = clear_client->async_send_request(request);
+    if (this->exec.spin_until_future_complete(result) ==
+        rclcpp::FutureReturnCode::SUCCESS) {
+      RCLCPP_INFO(n_ptr->get_logger(), "Costmaps cleared.\n");
+    } else {
+      RCLCPP_ERROR(n_ptr->get_logger(),
+                   "Failed to call service nav2/clear_costmaps");
     }
 
-    auto result = this->clear_client->async_send_request(request);
-    /*result.get();
-    if (ros::service::call(mb_string.c_str(), srv)){
-    //if (ros::service::call("move_base/clear_costmaps", srv)){
-        RCLCPP_INFO(this->get_logger(),"Costmap correctly cleared before patrolling task.");
+    //if (ros::service::call(mb_string.c_str(), srv)){
+    /*if (ros::service::call("move_base/clear_costmaps", srv)){
+        RCLCPP_INFO(n_ptr->get_logger(),"Costmap correctly cleared before patrolling task.");
     }else{
-        RCLCPP_WARN(this->get_logger(),"Was not able to clear costmap (%s) before patrolling...", mb_string.c_str());
-    }*/
+        RCLCPP_WARN(n_ptr->get_logger(),"Was not able to clear costmap (%s) before patrolling...", mb_string.c_str());
+    }+/
     
     // Asynch spinner (non-blocking)
-    auto options = rclcpp::ExecutorOptions();
-    rclcpp::executors::MultiThreadedExecutor spinner(options,2);
     //ros::AsyncSpinner spinner(2); // Use n threads
-    spinner.add_node(this->get_node_base_interface());
+    //spinner.add_node(n_ptr);
     spinner.spin();
 //     ros::waitForShutdown();
 
@@ -348,19 +386,21 @@ void PatrolAgent::run() {
     while(rclcpp::ok()){
         
         if (goal_complete) {
+            RCLCPP_INFO(n_ptr->get_logger(), "Goal Complete if case");
             onGoalComplete();  // can be redefined
             resend_goal_count=0;
         }
         else { // goal not complete (active)
             if (interference) {
+                RCLCPP_INFO(n_ptr->get_logger(), "Inference behaviour");
                 do_interference_behavior();
             }       
             
             if (ResendGoal) {
                 //Send the goal to the robot (Global Map)
-                if (resend_goal_count<3) {
+                if (resend_goal_count<10) {
                     resend_goal_count++;
-                    RCLCPP_INFO(this->get_logger(),"Re-Sending goal (%d) - Vertex %d (%f,%f)", resend_goal_count, next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
+                    RCLCPP_INFO(n_ptr->get_logger(),"Re-Sending goal (%d) - Vertex %d (%f,%f)", resend_goal_count, next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
                     sendGoal(next_vertex);
                 }
                 else {
@@ -375,11 +415,10 @@ void PatrolAgent::run() {
             if (end_simulation) {
                 return;
             }   
-        
         } // if (goal_complete)
-        
-		loop_rate.sleep(); 
 
+        exec.spin_once();
+		loop_rate.sleep(); 
     } // while ros.ok    
 }
 
@@ -401,7 +440,7 @@ void PatrolAgent::onGoalComplete()
     send_results();  // Algorithm specific function
 
     //Send the goal to the robot (Global Map)
-    RCLCPP_INFO(this->get_logger(),"Sending goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
+    RCLCPP_INFO(n_ptr->get_logger(),"Sending goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
     //sendGoal(vertex_web[next_vertex].x, vertex_web[next_vertex].y);  
     sendGoal(next_vertex);  // send to move_base
     
@@ -412,7 +451,7 @@ void PatrolAgent::onGoalNotComplete()
 {   
     int prev_vertex = next_vertex;
     
-    RCLCPP_INFO(this->get_logger(),"Goal not complete - From vertex %d to vertex %d\n", current_vertex, next_vertex);   
+    RCLCPP_INFO(n_ptr->get_logger(),"Goal not complete - From vertex %d to vertex %d\n", current_vertex, next_vertex);   
     
     //devolver proximo vertex tendo em conta apenas as idlenesses;
     next_vertex = compute_next_vertex();
@@ -424,18 +463,18 @@ void PatrolAgent::onGoalNotComplete()
         int num_neighs = vertex_web[current_vertex].num_neigh;
         int i = rand() % num_neighs;
         next_vertex = vertex_web[current_vertex].id_neigh[i];
-        RCLCPP_INFO(this->get_logger(),"Choosing another random vertex %d\n", next_vertex);
+        RCLCPP_INFO(n_ptr->get_logger(),"Choosing another random vertex %d\n", next_vertex);
     }
     
     // Look for any random vertex different from the previous one
     while (next_vertex == prev_vertex && next_vertex == current_vertex) {
         int i = rand() % dimension;
         next_vertex = i;
-        RCLCPP_INFO(this->get_logger(),"Choosing another random vertex %d\n", next_vertex);
+        RCLCPP_INFO(n_ptr->get_logger(),"Choosing another random vertex %d\n", next_vertex);
     }
 
     //Send the goal to the robot (Global Map)
-    RCLCPP_INFO(this->get_logger(),"Re-Sending NEW goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
+    RCLCPP_INFO(n_ptr->get_logger(),"Re-Sending NEW goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
     //sendGoal(vertex_web[next_vertex].x, vertex_web[next_vertex].y);  
     sendGoal(next_vertex);  // send to move_base
     
@@ -444,12 +483,12 @@ void PatrolAgent::onGoalNotComplete()
 
 
 void PatrolAgent::processEvents() {
-    
+
 }
 
 void PatrolAgent::update_idleness() {
     //double now = ros::Time::now().toSec();
-    double now = this->now().seconds();
+    double now = n_ptr->now().seconds();
         
     for(size_t i=0; i<dimension; i++){
         if ((int)i == next_vertex){
@@ -466,7 +505,7 @@ void PatrolAgent::initialize_node (){ //ID,msg_type,1
     
     int value = ID_ROBOT;
     if (value==-1){value=0;}
-    RCLCPP_INFO(this->get_logger(),"Initialize Node: Robot %d",value); 
+    RCLCPP_INFO(n_ptr->get_logger(),"Initialize Node: Robot %d",value); 
     
     std_msgs::msg::Int16MultiArray msg;   
     msg.data.clear();
@@ -481,9 +520,11 @@ void PatrolAgent::initialize_node (){ //ID,msg_type,1
     
     while (count<3){ //send activation msg 3times
         results_pub->publish(msg);
-        //ROS_INFO("publiquei msg: %s\n", msg.data.c_str());
+        //RCLCPP_INFO(n_ptr->get_logger(), "publiquei msg:");
         //ros::spinOnce();
-        rclcpp::spin_some(this->get_node_base_interface());
+        this->exec.spin_some();
+        //this->exec.spin_some();
+        //RCLCPP_INFO(n_ptr->get_logger(), "publiquei msg:");
         loop_rate.sleep();
         count++;
     }
@@ -492,18 +533,21 @@ void PatrolAgent::initialize_node (){ //ID,msg_type,1
 void PatrolAgent::getRobotPose(int robotid, float &x, float &y, float &theta) {
     
     if (listener==NULL) {
-        RCLCPP_ERROR(this->get_logger(),"TF listener null");
+        RCLCPP_ERROR(n_ptr->get_logger(),"TF listener null");
         return;
     }
     
-    std::stringstream ss; ss << "robot_" << robotid;
+    std::stringstream ss; 
+    ss << "robot_" << robotid;
     std::string robotname = ss.str();
-    std::string sframe = "/map";                //Patch David Portugal: Remember that the global map frame is "/map"
+    std::string sframe = "map";                //Patch David Portugal: Remember that the global map frame is "/map"
     std::string dframe;
+
     if(ID_ROBOT>-1){
-        dframe = "/" + robotname + "/base_link";
+        dframe = robotname + "/base_link";
+        //dframe = "base_link";
     }else{
-        dframe = "/base_link";
+        dframe = "base_link";
     }
     
     geometry_msgs::msg::TransformStamped transform;
@@ -515,22 +559,39 @@ void PatrolAgent::getRobotPose(int robotid, float &x, float &y, float &theta) {
         transform = tf_buffer_->lookupTransform(sframe, dframe, rclcpp::Time(0), rclcpp::Duration::from_seconds(3));
     }
     catch(tf2::TransformException &ex) {
-        RCLCPP_ERROR(this->get_logger(),"Cannot transform from %s to %s\n",sframe.c_str(),dframe.c_str());
-        RCLCPP_ERROR(this->get_logger(),"%s", ex.what());
+        RCLCPP_ERROR(n_ptr->get_logger(),"Cannot transform from %s to %s\n",sframe.c_str(),dframe.c_str());
+        RCLCPP_ERROR(n_ptr->get_logger(),"%s", ex.what());
     }
 
     //x = transform.getOrigin().x();
-    x = tf_stamped.getOrigin().x();
+    x = transform.transform.translation.x;
     //y = transform.getOrigin().y();
-    y = tf_stamped.getOrigin().y();
+    y = transform.transform.translation.y;
     //theta = tf::getYaw(transform.getRotation());
-    theta = tf2::getYaw(tf_stamped.getRotation());
+    theta = tf2::getYaw(transform.transform.rotation);
     // printf("Robot %d pose : %.1f %.1f \n",robotid,x,y);
+}
+
+void PatrolAgent::latencyCB(const patrolling_sim_msgs::msg::Latency &msg)
+{
+    if(ID_ROBOT == 0)
+    {
+      RCLCPP_DEBUG(n_ptr->get_logger(), "Latency CB: Expecting packet: %d",
+                   latency_packet);
+      if (msg.robot_id == ID_ROBOT && msg.packet_id == latency_packet) {
+        patrolling_sim_msgs::msg::Latency msg;
+        msg.robot_id = ID_ROBOT;
+        msg.packet_id = latency_packet + 1;
+        this->latency_pub->publish(msg);
+        latency_packet++;
+      }
+    }
 }
 
 void PatrolAgent::odomCB(const nav_msgs::msg::Odometry &msg) { //colocar propria posicao na tabela
     
 //  printf("Colocar Propria posição na tabela, ID_ROBOT = %d\n",ID_ROBOT);
+     //RCLCPP_INFO(n_ptr->get_logger(),"ODOM CB");
     int idx = ID_ROBOT;
     
     if (ID_ROBOT<=-1){
@@ -543,7 +604,7 @@ void PatrolAgent::odomCB(const nav_msgs::msg::Odometry &msg) { //colocar propria
     xPos[idx]=x; // msg->pose.pose.position.x;
     yPos[idx]=y; // msg->pose.pose.position.y;
     
-//  printf("Posicao colocada em Pos[%d]\n",idx);
+    //printf("Posicao colocada em Pos[%d]: %f \t %f\n",idx,xPos[idx],yPos[idx]);
 }
 
 
@@ -568,7 +629,7 @@ void PatrolAgent::sendGoal(int next_vertex)
     //goal.target_pose.header.frame_id = "map"; 
     goal.pose.header.frame_id = "map";
     //goal.target_pose.header.stamp = ros::Time::now();    
-    goal.pose.header.stamp = this->now();    
+    goal.pose.header.stamp = n_ptr->now();    
     //goal.target_pose.pose.position.x = target_x; // vertex_web[current_vertex].x;
     //goal.target_pose.pose.position.y = target_y; // vertex_web[current_vertex].y;  
     //goal.target_pose.pose.orientation = angle_quat; //doesn't matter really.
@@ -578,18 +639,41 @@ void PatrolAgent::sendGoal(int next_vertex)
     //ac->sendGoal(goal, boost::bind(&PatrolAgent::goalDoneCallback, this, _1, _2), boost::bind(&PatrolAgent::goalActiveCallback,this), boost::bind(&PatrolAgent::goalFeedbackCallback, this,_1));  
 
     auto send_goal_options = rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SendGoalOptions();
-    send_goal_options.goal_response_callback = std::bind(&PatrolAgent::goalActiveCallback,this,_1);
+    //send_goal_options.goal_response_callback = std::bind(&PatrolAgent::goalActiveCallback,this,_1);
     send_goal_options.feedback_callback = std::bind(&PatrolAgent::goalFeedbackCallback,this,_1,_2);
     send_goal_options.result_callback = std::bind(&PatrolAgent::goalDoneCallback,this,_1);
 
-    ac->async_send_goal(goal,send_goal_options);
+    auto goal_handle_future = ac->async_send_goal(goal,send_goal_options);
+    
+    if (exec.spin_until_future_complete(goal_handle_future) != rclcpp::FutureReturnCode::SUCCESS)
+    {
+        RCLCPP_ERROR(n_ptr->get_logger(),"send goal call failed");
+        this->cancelGoal();
+        ResendGoal = true;
+    }
+
+    rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr goal_handle = goal_handle_future.get();
+    if (!goal_handle){
+        RCLCPP_ERROR(n_ptr->get_logger(),"Goal was rejected by the server");
+        ResendGoal= true;
+        goal_complete = false;
+    }else{
+        goal_complete = false;
+        RCLCPP_INFO(n_ptr->get_logger(), "Goal was accepted by the server!");
+    }
 }
 
 void PatrolAgent::cancelGoal() 
 {
     goal_canceled_by_user = true;
     //ac->cancelAllGoals();
-    ac->async_cancel_all_goals();
+    auto cancel_future = ac->async_cancel_all_goals();
+    
+    if(exec.spin_until_future_complete(cancel_future) != rclcpp::FutureReturnCode::SUCCESS){
+        RCLCPP_WARN(n_ptr->get_logger(),"Failed to cancel goal");
+    }else{
+        RCLCPP_INFO(n_ptr->get_logger(),"The goal was cancelled sucessfully!");
+    }
 }
 
 
@@ -601,24 +685,22 @@ void PatrolAgent::goalDoneCallback(const rclcpp_action::ClientGoalHandle<nav2_ms
     //if(state.state_ == actionlib::SimpleClientGoalState::ABORTED) needToBackUp = true;    
     
     if(result.code == rclcpp_action::ResultCode::SUCCEEDED){
-        RCLCPP_INFO(this->get_logger(),"Goal reached ... WAITING %.2f sec",goal_reached_wait);
+        RCLCPP_INFO(n_ptr->get_logger(),"Goal reached ... WAITING %.2f sec",goal_reached_wait);
         //ros::Duration delay(goal_reached_wait); // wait after goal is reached
         //delay.sleep();
 
         auto goal_wait = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<double>{goal_reached_wait});
         rclcpp::sleep_for(goal_wait);
-        RCLCPP_INFO(this->get_logger(),"Goal reached ... DONE");
+        RCLCPP_INFO(n_ptr->get_logger(),"Goal reached ... DONE");
         goal_complete = true;
     }else{
         aborted_count++;
-        RCLCPP_INFO(this->get_logger(),"CANCELLED or ABORTED... %d",aborted_count);   //tentar voltar a enviar goal..
+        RCLCPP_INFO(n_ptr->get_logger(),"CANCELLED or ABORTED... %d",aborted_count);   //tentar voltar a enviar goal..
         if (!goal_canceled_by_user) {
-            RCLCPP_INFO(this->get_logger(),"Goal not cancelled by the interference...");
+            RCLCPP_INFO(n_ptr->get_logger(),"Goal not cancelled by the interference...");
 
-            //ROS_INFO("Backup");
-            backup();
-
-            RCLCPP_INFO(this->get_logger(),"Clear costmap!");
+            //RCLCPP_INFO(n_ptr->get_logger(),"Backup");
+            //backup();
 
             char srvname[80];
             
@@ -628,37 +710,36 @@ void PatrolAgent::goalDoneCallback(const rclcpp_action::ClientGoalHandle<nav2_ms
             }else{
                 sprintf(srvname,"/robot_%d/local_costmap/clear_entirely_local_costmap",ID_ROBOT);
             }
-            
+
             //ros::NodeHandle n;
-            std::shared_ptr<rclcpp::Node> node_client = rclcpp::Node::make_shared("clear_client_2");
-            rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr clear_client2 = 
-                node_client->create_client<nav2_msgs::srv::ClearEntireCostmap>(srvname);
+            //std::shared_ptr<rclcpp::Node> node_client = rclcpp::Node::make_shared("clear_client_2");
             //ros::ServiceClient client = n.serviceClient<std_srvs::Empty>(srvname);
             //std_srvs::Empty srv;
 
-            auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();
-            while (!clear_client2->wait_for_service(1s)) {
+            /*auto request = std::make_shared<nav2_msgs::srv::ClearEntireCostmap::Request>();
+            while (!clear_client->wait_for_service(1s)) {
                 if (!rclcpp::ok()) {
                     RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
                     return;
                 }
                 RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
             }
+            
+            auto result = clear_client->async_send_request(request);
 
-            auto result = clear_client2->async_send_request(request);
-            if(rclcpp::spin_until_future_complete(node_client,result) == rclcpp::FutureReturnCode::SUCCESS){
-                RCLCPP_INFO(this->get_logger(),"Costmaps cleared.\n");
+            if(exec.spin_until_future_complete(result) == rclcpp::FutureReturnCode::SUCCESS){
+                RCLCPP_INFO(n_ptr->get_logger(),"Costmaps cleared.\n");
             }else{
-                RCLCPP_ERROR(this->get_logger(),"Failed to call service nav2/clear_costmaps");
-            }
+                RCLCPP_ERROR(n_ptr->get_logger(),"Failed to call service nav2/clear_costmaps");
+            }*/
             /*if (client.call(srv)) {
-                RCLCPP_INFO(this->get_logger(),"Costmaps cleared.\n");
+                RCLCPP_INFO(n_ptr->get_logger(),"Costmaps cleared.\n");
             }
             else {
-                RCLCPP_ERROR(this->get_logger(),"Failed to call service nav2/clear_costmaps");
+                RCLCPP_ERROR(n_ptr->get_logger(),"Failed to call service nav2/clear_costmaps");
             }*/
 
-            RCLCPP_INFO(this->get_logger(),"Resend Goal!");
+            RCLCPP_INFO(n_ptr->get_logger(),"Resend Goal!");
             ResendGoal = true;
         }
     }
@@ -666,11 +747,18 @@ void PatrolAgent::goalDoneCallback(const rclcpp_action::ClientGoalHandle<nav2_ms
 
 void PatrolAgent::goalActiveCallback(std::shared_future<rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr> future){  //enquanto o robot esta a andar para o goal...
     goal_complete = false;
-//      ROS_INFO("Goal is active.");
+    auto goal_handle = future.get();
+    if (!goal_handle){
+        RCLCPP_ERROR(n_ptr->get_logger(), "Goal was rejected by server!");
+    } else {
+        RCLCPP_INFO(n_ptr->get_logger(), "Goal was accepted by server!");
+    }
 }
 
 void PatrolAgent::goalFeedbackCallback(rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr,
                                     const std::shared_ptr<const nav2_msgs::action::NavigateToPose::Feedback> feedback){    //publicar posições
+
+    //RCLCPP_INFO(n_ptr->get_logger(), "Goal feedback!");
 
     send_positions();
     
@@ -694,17 +782,16 @@ void PatrolAgent::send_goal_reached() {
     //msg.data.push_back(0); //David Portugal: is this necessary?
     
     results_pub->publish(msg);   
-    rclcpp::spin_some(this->get_node_base_interface());
+    exec.spin_once(); //CHANGED THIS TO spin_some
+    //this->exec.spin_once();
 }
 
 bool PatrolAgent::check_interference (int robot_id){ //verificar se os robots estao proximos
-    
     int i;
     double dist_quad;
     
-    //if (ros::Time::now().toSec()-last_interference<10)  // seconds
-    if (this->now().seconds()-last_interference<10)  // seconds
-        return false; // false if within 10 seconds from the last one
+    if (n_ptr->now().seconds()-last_interference<10)  // seconds
+        return false; // false if within 7 seconds from the last one
     
     /* Poderei usar TEAMSIZE para afinar */
     for (i=0; i<robot_id; i++){ //percorrer vizinhos (assim asseguro q cada interferencia é so encontrada 1 vez)
@@ -712,26 +799,24 @@ bool PatrolAgent::check_interference (int robot_id){ //verificar se os robots es
         dist_quad = (xPos[i] - xPos[robot_id])*(xPos[i] - xPos[robot_id]) + (yPos[i] - yPos[robot_id])*(yPos[i] - yPos[robot_id]);
         
         if (dist_quad <= INTERFERENCE_DISTANCE*INTERFERENCE_DISTANCE){    //robots are ... meter or less apart
-//          ROS_INFO("Feedback: Robots are close. INTERFERENCE! Dist_Quad = %f", dist_quad);
+            //RCLCPP_INFO(n_ptr->get_logger(),"Feedback: Robots %d and %d are close. INTERFERENCE! Dist_Quad = %f", robot_id, i, dist_quad);
             //last_interference = ros::Time::now().toSec();
-            last_interference = this->now().seconds();
+            last_interference = n_ptr->now().seconds();
             return true;
         }       
     }
     return false;
-    
 }
 
 void PatrolAgent::backup(){
     
-    //ros::Rate loop_rate(100); // 100Hz
     rclcpp::Rate loop_rate(100); // 100Hz
     
     int backUpCounter = 0;
     while (backUpCounter<=100){
     
       if(backUpCounter==0){
-          RCLCPP_INFO(this->get_logger(),"The wall is too close! I need to do some backing up...");
+          RCLCPP_INFO(n_ptr->get_logger(),"The wall is too close! I need to do some backing up...");
           // Move the robot back...
           geometry_msgs::msg::Twist cmd_vel;
           cmd_vel.linear.x = -0.1;
@@ -754,33 +839,30 @@ void PatrolAgent::backup(){
           cmd_vel.angular.z = 0.0;
           cmd_vel_pub->publish(cmd_vel);
               
-          // ROS_INFO("Done backing up, now on with my life!");      
+          RCLCPP_INFO(n_ptr->get_logger(), "Done backing up, now on with my life!");      
       }
 
-      //ros::spinOnce();
-      rclcpp::spin_some(this->get_node_base_interface());
+      //this->exec.spin_once();
       loop_rate.sleep();
       backUpCounter++;
-    
     }
-    
 }
 
 void PatrolAgent::do_interference_behavior()
 {
-    RCLCPP_INFO(this->get_logger(),"Interference detected! Executing interference behavior...\n");   
+    RCLCPP_INFO(n_ptr->get_logger(),"Interference detected! Executing interference behavior...\n");   
     send_interference();  // send interference to monitor for counting
     
 #if 1
     // Stop the robot..         
     cancelGoal();
-    RCLCPP_INFO(this->get_logger(),"Robot stopped");
+    RCLCPP_INFO(n_ptr->get_logger(),"Robot stopped");
     //ros::Duration delay(3); // seconds
     //delay.sleep();
-    rclcpp::sleep_for(std::chrono::seconds(3));
+    rclcpp::sleep_for(std::chrono::seconds(7));
     ResendGoal = true;
 #else    
-    //get own "odom" positions...
+    //get own "odom" positions..
     ros::spinOnce();        
                 
     //Waiting until conflict is solved...
@@ -795,13 +877,7 @@ void PatrolAgent::do_interference_behavior()
 #endif
 }
 
-
-
-
 // ROBOT-ROBOT COMMUNICATION
-
-
-
 void PatrolAgent::send_positions()
 {
     //Publish Position to common node:
@@ -820,9 +896,11 @@ void PatrolAgent::send_positions()
 
     msg.pose.pose.position.x = xPos[idx]; //send odometry.x
     msg.pose.pose.position.y = yPos[idx]; //send odometry.y
+    //RCLCPP_INFO(n_ptr->get_logger(),"idx: %d x: %f y: %f",idx,xPos[idx],yPos[idx]);
   
     positions_pub->publish(msg);
-    rclcpp::spin_some(this->get_node_base_interface());
+    //exec.spin_once();
+    //this->exec.spin_once();
 }
 
 
@@ -833,17 +911,17 @@ void PatrolAgent::receive_positions()
 
 void PatrolAgent::positionsCB(const nav_msgs::msg::Odometry &msg) { //construir tabelas de posições
         
-//     printf("Construir tabela de posicoes (receber posicoes), ID_ROBOT = %d\n",ID_ROBOT);    
+    //RCLCPP_INFO(n_ptr->get_logger(),"Construir tabela de posicoes (receber posicoes), ID_ROBOT = %d\n",ID_ROBOT);    
         
     char id[20]; //identificador do robot q enviou a msg d posição...
     strcpy( id, msg.header.frame_id.c_str() );
     //int stamp = msg->header.seq;
-//     printf("robot q mandou msg = %s\n", id);
+    //RCLCPP_INFO(n_ptr->get_logger(),"robot q mandou msg = %s\n", id);
     
     // Build Positions Table
     
     if (ID_ROBOT>-1){
-    //verify id "XX" of robot: (string: "robot_XX/map")
+    //verify id "XX" of robot: (string: "robot_XXXX/map")
     
         char str_idx[4];
         uint i;
@@ -858,7 +936,7 @@ void PatrolAgent::positionsCB(const nav_msgs::msg::Odometry &msg) { //construir 
         }
         
         int idx = atoi (str_idx);
-    //  printf("id robot q mandou msg = %d\n",idx);
+        //RCLCPP_INFO(n_ptr->get_logger(),"id robot q mandou msg = %d\n",idx);
         
         if (idx >= TEAMSIZE && TEAMSIZE <= NUM_MAX_ROBOTS){
             //update teamsize:
@@ -868,8 +946,8 @@ void PatrolAgent::positionsCB(const nav_msgs::msg::Odometry &msg) { //construir 
         if (ID_ROBOT != idx){  //Ignore own positions   
             xPos[idx]=msg.pose.pose.position.x;
             yPos[idx]=msg.pose.pose.position.y;        
-        }   
-//      printf ("Position Table:\n frame.id = %s\n id_robot = %d\n xPos[%d] = %f\n yPos[%d] = %f\n\n", id, idx, idx, xPos[idx], idx, yPos[idx] );       
+        } 
+        //RCLCPP_INFO(n_ptr->get_logger(),"Position Table:\n frame.id = %s\n id_robot = %d\n xPos[%d] = %f\n yPos[%d] = %f\n\n", id, idx, idx, xPos[idx], idx, yPos[idx] );       
     }
     
     receive_positions();
@@ -894,7 +972,8 @@ void PatrolAgent::do_send_message(std_msgs::msg::Int16MultiArray &msg) {
         //}
     }    
     results_pub->publish(msg);
-    rclcpp::spin_some(this->get_node_base_interface());
+    exec.spin_once();
+   // this->exec.spin_once();
 }
 
 
@@ -915,13 +994,14 @@ void PatrolAgent::send_interference(){
     msg.data.push_back(INTERFERENCE_MSG_TYPE);
     
     results_pub->publish(msg);   
-    rclcpp::spin_some(this->get_node_base_interface());
+    this->exec.spin_once();
 }
 
 
 
 
 void PatrolAgent::resultsCB(const std_msgs::msg::Int16MultiArray &msg) { 
+   //RCLCPP_INFO(n_ptr->get_logger(), "Results CB");
     
     std::vector<signed short>::const_iterator it = msg.data.begin();    
     
@@ -934,12 +1014,12 @@ void PatrolAgent::resultsCB(const std_msgs::msg::Int16MultiArray &msg) {
     int id_sender = vresults[0];
     int msg_type = vresults[1];
     
-    //printf(" MESSAGE FROM %d TYPE %d ...\n",id_sender, msg_type);
+    // printf(" MESSAGE FROM %d TYPE %d ...\n",id_sender, msg_type);
     
     // messages coming from the monitor
     if (id_sender==-1 && msg_type==INITIALIZE_MSG_TYPE) {
         if (initialize==true && vresults[2]==100) {   //"-1,msg_type,100,seq_flag" (BEGINNING)
-            RCLCPP_INFO(this->get_logger(),"Let's Patrol!\n");
+            RCLCPP_INFO(n_ptr->get_logger(),"Let's Patrol!\n");
             
             double r = 1.0 * ((rand() % 1000)/1000.0);
             auto meanWaiting = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<double>{r});
@@ -990,6 +1070,6 @@ void PatrolAgent::resultsCB(const std_msgs::msg::Int16MultiArray &msg) {
             receive_results();
     }
 
-    rclcpp::spin_some(this->get_node_base_interface());
-  
+    // exec.spin_once();
+    //this->exec.spin_once();
 }

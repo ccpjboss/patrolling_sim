@@ -55,6 +55,7 @@
 //#include <std_msgs/Int16MultiArray.h>
 #include "std_msgs/msg/int16_multi_array.hpp"
 #include "nav2_msgs/srv/clear_entire_costmap.hpp"
+#include "patrolling_sim_msgs/msg/latency.hpp"
 
 #include "getgraph.h"
 
@@ -67,7 +68,7 @@ typedef unsigned int uint;
 //typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
 typedef rclcpp_action::Client<nav2_msgs::action::NavigateToPose> nav2_client;
 
-class PatrolAgent : public rclcpp::Node{
+class PatrolAgent{
 
 protected:
     
@@ -99,6 +100,7 @@ protected:
     double goal_reached_wait, communication_delay, last_communication_delay_time, lost_message_rate;
     std::string initial_positions;
     int aborted_count, resend_goal_count;
+    int latency_packet;
     
     //MoveBaseClient *ac; // action client for reaching target goals
     std::shared_ptr<nav2_client> ac;
@@ -118,15 +120,25 @@ protected:
 
     //Clear costmap client
     rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr clear_client;
+    std::shared_ptr<rclcpp::Node> n_ptr{nullptr};
+    //rclcpp::executors::SingleThreadedExecutor exec;
+    rclcpp::ExecutorOptions exec_options;
+    rclcpp::executors::SingleThreadedExecutor exec = rclcpp::executors::SingleThreadedExecutor(exec_options);
+
+    // Latency pub_sub
+    rclcpp::Publisher<patrolling_sim_msgs::msg::Latency>::SharedPtr latency_pub;
+    rclcpp::Subscription<patrolling_sim_msgs::msg::Latency>::SharedPtr latency_sub;
+    rclcpp::CallbackGroup::SharedPtr nav_cb_group{nullptr};
     
 public:
     
-    PatrolAgent() : Node("patrol_agent") { 
+    PatrolAgent(){ 
         listener=NULL;
         next_vertex = -1;
         initialize = true;
         end_simulation = false;
         ac = NULL;
+        latency_packet = 0;
     }
     
     virtual void init(int argc, char** argv);
@@ -139,6 +151,7 @@ public:
     
     void getRobotPose(int robotid, float &x, float &y, float &theta);
     void odomCB(const nav_msgs::msg::Odometry &msg);
+    void latencyCB(const patrolling_sim_msgs::msg::Latency &msg);
     
     void sendGoal(int next_vertex);
     void cancelGoal();

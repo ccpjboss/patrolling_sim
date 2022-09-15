@@ -132,8 +132,9 @@ def run_experiment(MAP, NROBOTS, INITPOS, ALG_SHORT, LOC_MODE, NAV_MODULE, GWAIT
     print(scenario,'   ',iposes)
 
     cmd = './setinitposes_stage.py '+MAP+' "'+iposes+'"'
-    os.system(cmd)
+    print(iposes.replace(" ",""))
     print(cmd)
+    os.system(cmd)
 
     os.system('sleep 3')
     #os.system('rosparam set /use_sim_time true')
@@ -144,9 +145,9 @@ def run_experiment(MAP, NROBOTS, INITPOS, ALG_SHORT, LOC_MODE, NAV_MODULE, GWAIT
     #os.system("rosparam set /initial_positions "+INITPOS)
 
     cmd_monitor = 'ros2 run patrolling_sim_ros2 monitor '+MAP+' '+ALG_SHORT+' '+NROBOTS  
-    print(cmd_monitor)
-
     cmd_stage = 'ros2 launch patrolling_sim_ros2 map.launch.py map:='+MAP
+
+    print(cmd_monitor)
     print(cmd_stage)
 
     if (TERM == 'xterm'):
@@ -157,11 +158,9 @@ def run_experiment(MAP, NROBOTS, INITPOS, ALG_SHORT, LOC_MODE, NAV_MODULE, GWAIT
     os.system('sleep 1')
 
     cmd_poses = 'ros2 param set /monitor /initial_pos "'+iposes+'"'
-    print(cmd_poses_monitor)
-    os.system(cmd)
-    
+    os.system(cmd_poses)
     os.system('sleep 3')
-    
+
     # Start robots
     if (LOC_MODE == 'AMCL'):
         robot_launch = 'robot.launch.py'
@@ -169,10 +168,18 @@ def run_experiment(MAP, NROBOTS, INITPOS, ALG_SHORT, LOC_MODE, NAV_MODULE, GWAIT
         robot_launch = 'robot_fake_loc.launch'
     
     gcmd = 'gnome-terminal '
+    cmd = 'bash -c \'ros2 launch patrolling_sim_ros2 multi_nav_stack.launch.py map_path:='+MAP+' n_robots:='+NROBOTS
+    cmd = cmd + "'"
+    print(cmd)
+    gcmd = gcmd + ' --tab -e "'+cmd+'" '
+    gcmd = gcmd + '&'
+    os.system(gcmd)
+    os.system('sleep 5')
+
+    """
     for i in range(0,int(NROBOTS)):
         print("Run robot ",i)
-        cmd = 'bash -c \'ros2 launch patrolling_sim_ros2 '+robot_launch+' robotname:=robot_'+str(i)+' map_path:='+MAP+' n_robots:='+NROBOTS
-        
+        cmd = 'bash -c \'ros2 launch patrolling_sim_ros2 '+robot_launch+' robotname:=robot'+str(i)+' map_path:='+MAP+' n_robots:='+NROBOTS
         cmd = cmd + "'"
         print(cmd)
         if (TERM == 'xterm'):
@@ -184,30 +191,33 @@ def run_experiment(MAP, NROBOTS, INITPOS, ALG_SHORT, LOC_MODE, NAV_MODULE, GWAIT
 	#print gcmd
 	    os.system(gcmd)
     os.system('sleep 5')    
-        
+    """
+
     # Start patrol behaviors
     gcmd = 'gnome-terminal '
     for i in range(0,int(NROBOTS)):
         print("Run patrol robot ",i)
         if (ALG_SHORT=='MSP'):
-            cmd = 'bash -c \'ros2 run patrolling_sim_ros2 '+ALG+' __name:=patrol_robot'+str(i)+' '+MAP+' '+str(i)+' MSP/'+MAP+'/'+MAP+'_'+str(NROBOTS)+'_'+str(i)+' '+'\''
+            cmd = ('bash -c \'ros2 run patrolling_sim_ros2 '+ALG+' __name:=patrol_robot'+str(i)+' '+MAP+' '+str(i)+' MSP/'+MAP+'/'+MAP+'_'+str(NROBOTS)+'_'+str(i)+' --ros-args -p initial_pos:=\"'+iposes.replace(" ","")+'\"\'')
         elif (ALG_SHORT=='GBS' or ALG_SHORT=='SEBS' or ALG_SHORT=='CBLS'):
-            cmd = 'bash -c \'ros2 run patrolling_sim_ros2 '+ALG+' __name:=patrol_robot'+str(i)+' '+MAP+' '+str(i)+' '+str(NROBOTS)+'\''
+            cmd = ('bash -c \'ros2 run patrolling_sim_ros2 '+ALG+' __name:=patrol_robot'+str(i)+' '+MAP+' '+str(i)+' '+str(NROBOTS)+' --ros-args -p initial_pos:=\"'+iposes.replace(" ","")+'\"\'')
         else:
             now = datetime.datetime.now()
             dateString = now.strftime("%Y-%m-%d-%H:%M")
             #cmd = 'bash -c \'rosrun patrolling_sim '+ALG+' __name:=patrol_robot'+str(i)+' '+MAP+' '+str(i)+' > logs/'+ALG+'-'+dateString+'-robot'+str(i)+'.log \''
-            cmd = 'bash -c \'ros2 run patrolling_sim_ros2 '+ALG+' __name:=patrol_robot'+str(i)+' '+MAP+' '+str(i)+'--ros-args -p initial_pos:="'+iposes+'"''\''
+            cmd = ('bash -c \'ros2 run patrolling_sim_ros2 '+ALG+' __name:=patrol_robot_'+str(i)+' '+MAP+' '+str(i)+' --ros-args -p initial_pos:=\"'+iposes.replace(" ","")+'\" -r __ns:=/robot'+str(i)+' -r /tf:=tf -r /tf_static:=tf_static'+'\'')
         print(cmd)
         if (TERM == 'xterm'):
 	        os.system('xterm -e  "'+cmd+'" &')
         os.system('sleep 1')
-        gcmd = gcmd + ' --tab -e "'+cmd+'" '
+        gcmd = gcmd + ' --tab -e \"'+cmd+'\" '
     gcmd = gcmd + '&'
     if (TERM == 'gnome-terminal'):
-      #print gcmd
+        print(gcmd)
         os.system(gcmd)
     os.system('sleep '+NROBOTS)
+    #gnome-terminal  --tab -e "bash -c 'ros2 run patrolling_sim_ros2 Random __name:=patrol_robot_0 
+    # 1r5 0 --ros-args -p initial_pos:="[10.15, 7.60]"'" &
 
     #os.system('rm ~/.ros/stage-000003.png')
 
@@ -217,12 +227,12 @@ def run_experiment(MAP, NROBOTS, INITPOS, ALG_SHORT, LOC_MODE, NAV_MODULE, GWAIT
     print("Experiment started at ",strinittime)
     # wait for termination
     run = True
-    #while (run):
-    #    t = getROStime()
-        #print "Elapsed time: ",t," sec Timeout = ",TIMEOUT
-    #    if ((TIMEOUT>0 and t>TIMEOUT) or (not getSimulationRunning())):        
-    #        run = False;
-    #    os.system('sleep 1')
+    while (run):
+        t = getROStime()
+        print("Elapsed time: ",t," sec Timeout = ",TIMEOUT)
+        if ((TIMEOUT>0 and t>TIMEOUT) or (not getSimulationRunning())):        
+            run = False;
+        os.system('sleep 1')
 
     #print "Taking a screenshot..."
     #os.system('rostopic pub /stageGUIRequest std_msgs/String "data: \'screenshot\'"  --once')

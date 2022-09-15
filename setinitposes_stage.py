@@ -23,7 +23,7 @@ def setIP(mapname, vip):
         y = ip[i*2+1]
         th = 90
         fr.write('crobot( pose [ '+str(x)+'  '+str(y)+'  0  '+str(th) +
-                 ' ]   name "robot_'+str(i)+'"  color "'+colors[i]+'")\n')
+                 ' ]   name "robot'+str(i)+'"  color "'+colors[i]+'")\n')
 
     if (n == 1):
         # inactive robot for having correct namespaces

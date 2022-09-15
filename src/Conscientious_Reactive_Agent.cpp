@@ -111,7 +111,7 @@ int Conscientious_Reactive_Agent::compute_next_vertex() {
         next_vertex = vertex_web[current_vertex].id_neigh[0]; //only one possibility
     }
   
-    RCLCPP_INFO(this->get_logger(),"Conscientious_Reactive choice: %d",next_vertex);
+    RCLCPP_INFO(n_ptr->get_logger(),"Conscientious_Reactive choice: %d",next_vertex);
     return next_vertex;
 }
 
@@ -128,6 +128,7 @@ void Conscientious_Reactive_Agent::receive_results() {
 
 int main(int argc, char** argv) {
   
+    rclcpp::init(argc, argv);
     Conscientious_Reactive_Agent agent;
     agent.init(argc,argv);
     agent.run();

@@ -78,6 +78,7 @@ void Heuristic_Conscientious_Reactive_Agent::receive_results() {
 #endif
 
 int main(int argc, char** argv) {
+    rclcpp::init(argc, argv);
   
     Heuristic_Conscientious_Reactive_Agent agent;
     agent.init(argc,argv);

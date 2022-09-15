@@ -82,7 +82,7 @@ void GBS_Agent::init(int argc, char** argv) {
   
   PatrolAgent::init(argc,argv);
  
-  NUMBER_OF_ROBOTS = atoi(argv[3]);
+  NUMBER_OF_ROBOTS = atoi(argv[4]);
   arrived = false; 
   
   /** Define G1 and G2 **/
@@ -126,9 +126,10 @@ void GBS_Agent::processEvents() {
       
     if (arrived && NUMBER_OF_ROBOTS>1){ //a different robot arrived at a vertex: update idleness table and keep track of last vertices positions of other robots.
 
+        RCLCPP_INFO(n_ptr->get_logger(),"Robot %d reached Goal %d.\n", robot_arrived, vertex_arrived);    
         //Update Idleness Table:
         //double now = ros::Time::now().toSec();
-        double now = this->now().seconds();
+        double now = n_ptr->now().seconds();
                 
         for(int i=0; i<dimension; i++){
             if (i == vertex_arrived){
@@ -138,13 +139,15 @@ void GBS_Agent::processEvents() {
             }         
             //actualizar instantaneous_idleness[dimension]
             instantaneous_idleness[i] = now - last_visit[i];
+	          RCLCPP_INFO(n_ptr->get_logger(),"idleness[%d] = %f", i, instantaneous_idleness[i]);
         }
         
         arrived = false;
     }
     
     //ros::spinOnce();
-    rclcpp::spin_some(this->get_node_base_interface());
+    //rclcpp::spin_(n_ptr);
+    this->exec.spin_once();
 }
 
 int GBS_Agent::compute_next_vertex() {
@@ -183,6 +186,7 @@ void GBS_Agent::receive_results() {
 
 
 int main(int argc, char** argv) {
+    rclcpp::init(argc, argv);
 
     GBS_Agent agent;
     agent.init(argc,argv);    

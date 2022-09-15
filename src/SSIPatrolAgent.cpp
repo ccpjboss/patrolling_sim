@@ -77,7 +77,7 @@ void SSIPatrolAgent::onGoalComplete()
     send_results();  // Algorithm specific function
     
     //Send the goal to the robot (Global Map)
-    RCLCPP_INFO(this->get_logger(),"Sending goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
+    RCLCPP_INFO(n_ptr->get_logger(),"Sending goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
     //sendGoal(vertex_web[next_vertex].x, vertex_web[next_vertex].y);  
     sendGoal(next_vertex);  // send to move_base
 
@@ -163,7 +163,7 @@ void SSIPatrolAgent::init(int argc, char** argv) {
     }
     nactivetasks=0;
 
-    last_update_idl = this->now().seconds();
+    last_update_idl = n_ptr->now().seconds();
 
     first_vertex = true;	
 
@@ -178,8 +178,9 @@ void SSIPatrolAgent::init(int argc, char** argv) {
     std::stringstream paramss;
     paramss << timeout << "," << theta_idl << "," << theta_cost << "," << theta_hop << "," << threshold << "," << hist;
 
-    auto param = rclcpp::Parameter("/algorithm_params",paramss.str());
-    this->set_parameter(param);
+    n_ptr->declare_parameter("algorithm_params", rclcpp::PARAMETER_STRING);
+    rclcpp::Parameter param("algorithm_params",paramss.str());
+    n_ptr->set_parameter(param);
 
 }
 
@@ -295,7 +296,7 @@ double SSIPatrolAgent::utility(int cv,int nv) {
 
 void SSIPatrolAgent::update_global_idleness() 
 {   
-    double now = this->now().seconds();
+    double now = n_ptr->now().seconds();
     
     pthread_mutex_lock(&lock);
     for(size_t i=0; i<dimension; i++) {
@@ -564,7 +565,7 @@ void SSIPatrolAgent::send_target(int nv,double bv) {
 #endif
         int ibv = (int)(bv);
         if (ibv>32767) { // Int16 is used to send messages
-            RCLCPP_WARN(this->get_logger(),"Wrong conversion when sending bid value in messages!!!");
+            RCLCPP_WARN(n_ptr->get_logger(),"Wrong conversion when sending bid value in messages!!!");
             ibv=32000;
         }
 	msg.data.push_back(ibv);
@@ -591,7 +592,7 @@ void SSIPatrolAgent::send_bid(int nv,double bv) {
 #endif
         int ibv = (int)(bv);
         if (ibv>32767) { // Int16 is used to send messages
-            RCLCPP_WARN(this->get_logger(),"Wrong conversion when sending bid value in messages!!!");
+            RCLCPP_WARN(n_ptr->get_logger(),"Wrong conversion when sending bid value in messages!!!");
             ibv=32000;
         }
         msg.data.push_back(ibv);
@@ -670,7 +671,7 @@ void SSIPatrolAgent::send_results() {
         // convert in 1/10 of secs (integer value) Max value 3276.8 second (> 50 minutes) !!!
         int ms = (int)(global_instantaneous_idleness[i]*10);
         if (ms>32767) { // Int16 is used to send messages
-            RCLCPP_WARN(this->get_logger(),"Wrong conversion when sending idleness value in messages!!!");
+            RCLCPP_WARN(n_ptr->get_logger(),"Wrong conversion when sending idleness value in messages!!!");
             printf("*** idleness value = %.1f -> int16 value = %d\n",global_instantaneous_idleness[i],ms);
             ms=32000;
         }
@@ -696,7 +697,7 @@ void SSIPatrolAgent::update_bids(int nv, double bv, int senderId){
 
 void SSIPatrolAgent::idleness_msg_handler(std::vector<int>::const_iterator it){
 
-    double now = this->now().seconds();
+    double now = n_ptr->now().seconds();
     pthread_mutex_lock(&lock);
     for(size_t i=0; i<dimension; i++) {
 		int ms = *it; it++; // received value
@@ -747,7 +748,7 @@ void SSIPatrolAgent::task_request_msg_handler(std::vector<int>::const_iterator i
 void SSIPatrolAgent::task_request_msg_handler(std::vector<int>::const_iterator it, int senderId){
         int nv = *it; it++;
         double bv = *it; it++;
-        double now = this->now().seconds();
+        double now = n_ptr->now().seconds();
 #if DEBUG_PRINT
 	printf("DTAP [%.1f] handling task request message form %d: [ vertex: %d, bid value: %.2f]\n",now,senderId,nv,bv);
 #endif

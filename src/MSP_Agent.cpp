@@ -121,6 +121,8 @@ void MSP_Agent::receive_results() {
 #endif
 
 int main(int argc, char** argv) {
+
+    rclcpp::init(argc,argv);
     
     MSP_Agent agent;
     agent.init(argc,argv);    
@@ -128,7 +130,3 @@ int main(int argc, char** argv) {
 
     return 0; 
 }
-
-
-
-

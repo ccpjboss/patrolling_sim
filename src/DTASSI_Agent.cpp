@@ -42,7 +42,6 @@
 //Sequential Single Item Auction with dynamic compact partition of the environment
 class DTASSI_Agent: public SSIPatrolAgent {
 
-
 public:
 
     DTASSI_Agent(){}   	

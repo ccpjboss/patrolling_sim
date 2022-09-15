@@ -127,7 +127,7 @@ void Conscientious_Cognitive_Agent::onGoalComplete()
 
     if (inpath){
         //Send the goal to the robot (Global Map)
-        RCLCPP_INFO(this->get_logger(),"Sending goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
+        RCLCPP_INFO(n_ptr->get_logger(),"Sending goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
         sendGoal(next_vertex);
     }    
 
@@ -135,8 +135,8 @@ void Conscientious_Cognitive_Agent::onGoalComplete()
 //     printf("ID_ROBOT [3] = %d\n",ID_ROBOT); //-1 in the case there is only 1 robot.
 
   //ros::spinOnce();
-  rclcpp::spin_some(this->get_node_base_interface());
-    
+  //rclcpp::spin_some(n_ptr);
+  //this->exec.spin_once();
 }
 
 #if 0
@@ -152,6 +152,7 @@ void Conscientious_Cognitive_Agent::receive_results() {
 #endif
 
 int main(int argc, char** argv) {
+    rclcpp::init(argc, argv);
   
     Conscientious_Cognitive_Agent agent;
     agent.init(argc,argv);
@@ -159,4 +160,3 @@ int main(int argc, char** argv) {
 
     return 0; 
 }
-

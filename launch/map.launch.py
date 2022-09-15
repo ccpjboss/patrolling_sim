@@ -10,11 +10,14 @@ from launch.actions import OpaqueFunction
 def launch_setup(context, *args, **kwargs):
     package_path = get_package_share_directory('patrolling_sim_ros2')
     map_name = LaunchConfiguration('map').perform(context)
-
-    stage_node = Node(package='stage_ros2',
-                        namespace='/',
-                        executable='stage_ros2',
-                        parameters=[{"world": os.path.join(package_path,'maps',map_name,map_name+'.world')}])
+    print(os.path.join(package_path,'maps',map_name,map_name+'.world'))
+    
+    stage_node = Node(package='stage_ros',
+                        #namespace='/',
+                        executable='stageros',
+                        #arguments = [os.path.join(package_path,'maps',map_name,map_name+'.world')],
+                        #parameters=[{"use_sim_time": True}])
+    )
 
     return [
         stage_node,
@@ -22,7 +25,7 @@ def launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument('map'),
+        DeclareLaunchArgument('map',default_value="grid"),
         OpaqueFunction(function=launch_setup)
     ])
 

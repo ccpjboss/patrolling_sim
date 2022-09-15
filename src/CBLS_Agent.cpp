@@ -96,7 +96,7 @@ void CBLS_Agent::init(int argc, char** argv) {
    
   PatrolAgent::init(argc,argv);
   
-  NUMBER_OF_ROBOTS = atoi(argv[3]);
+  NUMBER_OF_ROBOTS = atoi(argv[4]);
   uint number_of_edges = GetNumberEdges(vertex_web, dimension);  
     
   //INITIALIZE tab_intention:
@@ -130,7 +130,7 @@ void CBLS_Agent::init(int argc, char** argv) {
   
   //INITIALIZE tables:
   //double time_zero = ros::Time::now().toSec();  
-  double time_zero = this->now().seconds();
+  double time_zero = n_ptr->now().seconds();
 
   avg_idleness = new double[dimension];	//closed avg
   cur_avg_idleness = new double[dimension];	//avg + inst
@@ -158,7 +158,7 @@ void CBLS_Agent::onGoalComplete() {
     		/** PUNISH & REWARD -- BEFORE **/ 
 		//Update Idleness Table:
 		//now_time = ros::Time::now().toSec();
-		now_time = this->now().seconds();
+		now_time = n_ptr->now().seconds();
 			
 		for(int i=0; i<dimension; i++){
 			if (i == next_vertex){
@@ -167,7 +167,7 @@ void CBLS_Agent::onGoalComplete() {
 				avg_idleness[i] = ( avg_idleness[i] * (double) (node_count [i] - 1) + instantaneous_idleness [i] ) / ( (double) node_count [i] );		  		    
 			}	
 			instantaneous_idleness[i]= now_time - last_visit[i];  //ou seja: Zero para o next_vertex			
-			//ROS_INFO("inst_idleness[%d] = %f", i, instantaneous_idleness[i]);
+			// RCLCPP_INFO(n_ptr->get_logger(),"inst_idleness[%d] = %f", i, instantaneous_idleness[i]);
 			
 			//Update Curr Avg Idleness Table:
 			cur_avg_idleness [i] = ( avg_idleness [i] * (double) (node_count [i]) + instantaneous_idleness [i] ) / ( (double) node_count [i] + 1 );
@@ -185,7 +185,7 @@ void CBLS_Agent::onGoalComplete() {
 		}*/
 		  
 		decision_number++;
-		//ROS_INFO("decision_number = %lld", decision_number);		
+		// RCLCPP_INFO(n_ptr->get_logger(),"decision_number = %lld", decision_number);		
 		  
 		current_vertex = next_vertex;		  
     }
@@ -194,7 +194,7 @@ void CBLS_Agent::onGoalComplete() {
 	next_vertex = compute_next_vertex();
 	
 	if(next_vertex == -1){
-	 RCLCPP_ERROR(this->get_logger(),"ABORT (learning_algorithm: next_vertex = -1)");
+	 RCLCPP_ERROR(n_ptr->get_logger(),"ABORT (learning_algorithm: next_vertex = -1)");
 	 exit(-1);
 	}	
 	/** *****************************************************/  
@@ -213,7 +213,7 @@ void CBLS_Agent::onGoalComplete() {
 	  send_goal_reached(); // Send TARGET to monitor
 	  send_results();  // Algorithm specific function
 	  
-	  RCLCPP_INFO(this->get_logger(),"Sending goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
+	  RCLCPP_INFO(n_ptr->get_logger(),"Sending goal - Vertex %d (%f,%f)\n", next_vertex, vertex_web[next_vertex].x, vertex_web[next_vertex].y);
 	  //sendGoal(vertex_web[next_vertex].x, vertex_web[next_vertex].y);  
 	  sendGoal(next_vertex);  // send to move_base
 	  
@@ -224,13 +224,13 @@ void CBLS_Agent::onGoalComplete() {
 
 // Executed at any cycle when goal is not reached
 void CBLS_Agent::processEvents() {
-    
+
     if (arrived && NUMBER_OF_ROBOTS>1){ //a different robot arrived at a vertex: update idleness table and keep track of last vertices positions of other robots.
 
-        //ROS_INFO("Robot %d reached Goal %d.\n", robot_arrived, vertex_arrived);    
+        RCLCPP_INFO(n_ptr->get_logger(),"Robot %d reached Goal %d.\n", robot_arrived, vertex_arrived);    
 
         //Update Idleness Table:
-        now_time = this->now().seconds();
+        now_time = n_ptr->now().seconds();
                 
         for(int i=0; i<dimension; i++){
             if (i == vertex_arrived){
@@ -242,7 +242,7 @@ void CBLS_Agent::processEvents() {
             //actualizar instantaneous_idleness[dimension]
             instantaneous_idleness[i] = now_time - last_visit[i];      
 	    cur_avg_idleness [i] = ( avg_idleness [i] * (double) (node_count [i]) + instantaneous_idleness [i] ) / ( (double) node_count [i] + 1 );		  	  		  	    
-	    //ROS_INFO("idleness[%d] = %f", i, instantaneous_idleness[i]);
+	    // RCLCPP_INFO(n_ptr->get_logger(),"idleness[%d] = %f", i, instantaneous_idleness[i]);
         }     
         
         arrived = false;
@@ -250,10 +250,11 @@ void CBLS_Agent::processEvents() {
 
     if (intention && NUMBER_OF_ROBOTS>1) {    
         tab_intention[robot_intention] = vertex_intention;
-        //printf("tab_intention[ID=%d]=%d\n",robot_intention,tab_intention[robot_intention]);
+        // printf("tab_intention[ID=%d]=%d\n",robot_intention,tab_intention[robot_intention]);
         intention = false;
     }
-    // ros::spinOnce();   
+    // ros::spinOnce(); 
+    this->exec.spin_once();  
 
 }
 
@@ -278,7 +279,7 @@ void CBLS_Agent::send_results() {
 }
 
 void CBLS_Agent::receive_results() {
-  
+     
     std::vector<int>::const_iterator it = vresults.begin();
     int id_sender = *it; it++;
     int msg_type = *it; it++;
@@ -298,12 +299,12 @@ void CBLS_Agent::receive_results() {
 }
 
 int main(int argc, char** argv) {
-
+    rclcpp::init(argc, argv);
+	
     CBLS_Agent agent;
     agent.init(argc,argv);    
     agent.run();
 
     return 0; 
 }
-
 

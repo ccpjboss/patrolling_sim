@@ -215,6 +215,8 @@ void DTASSIPart_Agent::update_tasks(){
 
 
 int main(int argc, char** argv) {
+    
+    rclcpp::init(argc, argv);
   
     DTASSIPart_Agent agent;
     agent.init(argc,argv);

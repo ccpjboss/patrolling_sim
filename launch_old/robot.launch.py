@@ -1,6 +1,6 @@
 import os
 from launch_ros.actions import Node, PushRosNamespace
-from launch.actions import DeclareLaunchArgument, GroupAction
+from launch.actions import DeclareLaunchArgument, GroupAction, SetEnvironmentVariable
 from launch.substitutions import LaunchConfiguration
 from launch.substitutions import TextSubstitution
 from launch import LaunchDescription
@@ -13,7 +13,6 @@ from math import radians
 initPoses = {}
 
 package_path = get_package_share_directory('patrolling_sim_ros2')
-
 
 def loadInitPoses():
     try:
@@ -30,7 +29,8 @@ def launch_setup(context, *args, **kwargs):
     loadInitPoses()
 
     robot_name_str = LaunchConfiguration('robotname').perform(context)
-    (name, i) = robot_name_str.split(sep='_')
+    #(name, i) = robot_name_str.split(sep='_')
+    i = robot_name_str.rsplit('robot')
     map_name_str = LaunchConfiguration('map_path').perform(context)
     n_robots_str = LaunchConfiguration('n_robots').perform(context)
 
@@ -42,15 +42,14 @@ def launch_setup(context, *args, **kwargs):
     iposes = iposes.replace(']','')
     iposes = iposes.split(',')
     print(iposes)
-    initial_x = float(iposes[int(i)*2])
+    initial_x = float(iposes[int(i[1])*2])
     print(initial_x)
-    initial_y = float(iposes[int(i)*2+1])
+    initial_y = float(iposes[int(i[1])*2+1])
     print(initial_y)
     initial_t = radians(90)
 
     default_map_dir = os.path.join(package_path, 'maps/1r5/1r5.yaml')
-    default_params_dir = os.path.join(package_path, 'params/nav2_params.yaml')
-    default_rviz_dir = os.path.join(package_path, 'rviz/main_config.rviz')
+    default_params_dir = os.path.join('.', 'params/nav2_params.yaml')
 
     lifecycle_nodes_localization = ['map_server', 'amcl']
 
@@ -82,28 +81,29 @@ def launch_setup(context, *args, **kwargs):
     autostart_arg = DeclareLaunchArgument(
         'autostart', default_value='true',
         description='Automatically startup the nav2 stack')
+    print(robot_name_str)
 
     param_substitutions = {
         'use_sim_time': LaunchConfiguration('use_sim_time'),
         'map_server.ros__parameters.yaml_filename': (package_path + '/maps/'+map_name_str+'/'+map_name_str+'.yaml'),
-        'amcl.ros__parameters.base_frame_id': (robot_name_str+'/base_footprint'),
-        'amcl.ros__parameters.global_frame_id': ('map'),
-        'amcl.ros__parameters.odom_frame_id': (robot_name_str+'/odom'),
+        'amcl.ros__parameters.base_frame_id': (robot_name_str + '/base_footprint'),
+        'amcl.ros__parameters.odom_frame_id': (robot_name_str + '/odom'),
+        'amcl.ros__parameters.scan_topic': ('/'+robot_name_str + '/ranger_0'),
         'amcl.ros__parameters.initial_pose.x': str(initial_x),
         'amcl.ros__parameters.initial_pose.y': str(initial_y),
-        'amcl.ros__parameters.initial_pose.yaw': str(initial_t),
-        'bt_navigator.ros__parameters.global_frame': ('map'),
-        'bt_navigator.ros__parameters.robot_base_frame': (robot_name_str+'/base_link'),
-        'bt_navigator.ros__parameters.odom_topic': ('/'+robot_name_str+'/odom'),
-        'local_costmap.local_costmap.ros__parameters.global_frame': (robot_name_str+'/odom'),
-        'local_costmap.local_costmap.ros__parameters.robot_base_frame': (robot_name_str+'/base_link'),
-        'local_costmap.local_costmap.ros__parameters.obstacle_layer.scan.topic': (robot_name_str+'/ranger_0'),
-        'global_costmap.global_costmap.ros__parameters.global_frame': ('map'),
-        'global_costmap.global_costmap.ros__parameters.robot_base_frame': (robot_name_str+'/base_link'),
-        'global_costmap.global_costmap.ros__parameters.obstacle_layer.scan.topic': (robot_name_str+'/ranger_0'),
-        'map_server.ros__parameters.frame_id': ('map'),
-        'recoveries_server.ros__parameters.global_frame': (robot_name_str+'/odom'),
-        'recoveries_server.ros__parameters.robot_base_frame': (robot_name_str+'/base_link')}
+        'bt_navigator.ros__parameters.robot_base_frame': (robot_name_str + '/base_link'),
+        'bt_navigator.ros__parameters.odom_topic': ('/'+robot_name_str + '/odom'),
+        'local_costmap.local_costmap.ros__parameters.global_frame': (robot_name_str + '/odom'),
+        'local_costmap.local_costmap.ros__parameters.robot_base_frame': (robot_name_str + '/base_link'),
+        'local_costmap.local_costmap.ros__parameters.map_topic': ('/'+robot_name_str + '/map'),
+        'local_costmap.local_costmap.ros__parameters.voxel_layer.scan.topic': ('/'+robot_name_str + '/ranger_0'),
+        'global_costmap.global_costmap.ros__parameters.robot_base_frame': (robot_name_str + '/base_link'),
+        'global_costmap.global_costmap.ros__parameters.map_topic': ('/'+robot_name_str + '/map'),
+        'global_costmap.global_costmap.ros__parameters.obstacle_layer.scan.topic': ('/'+robot_name_str + '/ranger_0'),
+        'global_costmap.global_costmap.ros__parameters.obstacle_layer.scan.sensor_frame': (robot_name_str + '/base_scan'),
+        'recoveries_server.ros__parameters.global_frame': (robot_name_str + '/odom'),
+        'recoveries_server.ros__parameters.robot_base_frame': (robot_name_str + '/base_link')
+        }
 
     configured_params = RewrittenYaml(
         source_file=LaunchConfiguration('params_file'),
@@ -111,45 +111,48 @@ def launch_setup(context, *args, **kwargs):
         param_rewrites=param_substitutions,
         convert_types=True),
 
-    rviz_node = Node(package='rviz2',
-                     executable='rviz2',
-                     arguments=['-d', default_rviz_dir],
-                     remappings=[('goal_pose', robot_name_str + '/goal_pose')])
-
     robot_group = GroupAction(
         actions=[
-            PushRosNamespace(LaunchConfiguration('robotname')),
             Node(
                 package='nav2_map_server',
+                namespace = robot_name_str,
                 executable='map_server',
                 name='map_server',
                 output='screen',
                 parameters=[configured_params],
-                remappings=remappings
+                remappings=remappings,
+                arguments=['--ros-args','--log-level','DEBUG']
             ),
 
             Node(
                 package='nav2_amcl',
                 executable='amcl',
+                namespace = robot_name_str,
                 name='amcl',
                 output='screen',
                 parameters=[configured_params],
-                remappings=remappings),
+                remappings=remappings,
+                arguments=['--ros-args','--log-level','DEBUG']),
 
             Node(
                 package='nav2_lifecycle_manager',
                 executable='lifecycle_manager',
                 name='lifecycle_manager_localization',
+                namespace = robot_name_str,
                 output='screen',
                 parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')},
                             {'autostart': LaunchConfiguration('autostart')},
-                            {'node_names': lifecycle_nodes_localization}]),
+                            {'node_names': lifecycle_nodes_localization}],
+                arguments=['--ros-args','--log-level','DEBUG']),
+
             Node(
                 package='nav2_controller',
                 executable='controller_server',
                 output='screen',
                 parameters=[configured_params],
-                remappings=remappings),
+                remappings=remappings,
+                namespace = robot_name_str,
+                arguments=['--ros-args','--log-level','DEBUG']),
 
             Node(
                 package='nav2_planner',
@@ -157,23 +160,29 @@ def launch_setup(context, *args, **kwargs):
                 name='planner_server',
                 output='screen',
                 parameters=[configured_params],
-                remappings=remappings),
+                namespace = robot_name_str,
+                remappings=remappings,
+                arguments=['--ros-args','--log-level','DEBUG']),
 
             Node(
                 package='nav2_recoveries',
                 executable='recoveries_server',
                 name='recoveries_server',
                 output='screen',
+                namespace = robot_name_str,
                 parameters=[configured_params],
-                remappings=remappings),
+                remappings=remappings,
+                arguments=['--ros-args','--log-level','DEBUG']),
 
             Node(
                 package='nav2_bt_navigator',
                 executable='bt_navigator',
                 name='bt_navigator',
+                namespace = robot_name_str,
                 output='screen',
                 parameters=[configured_params],
-                remappings=remappings),
+                remappings=remappings,
+                arguments=['--ros-args','--log-level','DEBUG']),
 
             Node(
                 package='nav2_waypoint_follower',
@@ -181,16 +190,20 @@ def launch_setup(context, *args, **kwargs):
                 name='waypoint_follower',
                 output='screen',
                 parameters=[configured_params],
-                remappings=remappings),
+                remappings=remappings,
+                namespace = robot_name_str,
+                arguments=['--ros-args','--log-level','DEBUG']),
 
             Node(
                 package='nav2_lifecycle_manager',
                 executable='lifecycle_manager',
                 name='lifecycle_manager_navigation',
+                namespace = robot_name_str,
                 output='screen',
                 parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')},
                             {'autostart': LaunchConfiguration('autostart')},
-                            {'node_names': lifecycle_nodes_navigation}])
+                            {'node_names': lifecycle_nodes_navigation}],
+                arguments=['--ros-args','--log-level','DEBUG'])
         ]
     )
     return [
@@ -200,9 +213,7 @@ def launch_setup(context, *args, **kwargs):
         use_nav2_arg,
         param_files_arg,
         autostart_arg,
-        rviz_node,
         robot_group
-        # ])
     ]
 
 

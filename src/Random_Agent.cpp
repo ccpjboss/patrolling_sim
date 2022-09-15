@@ -74,12 +74,13 @@ int Random_Agent::compute_next_vertex() {
     int i = rand() % num_neighs;
     next_vertex = vertex_web[current_vertex].id_neigh[i];
     
-    RCLCPP_INFO(this->get_logger(), "Random choice: %d",next_vertex);
+    RCLCPP_INFO(n_ptr->get_logger(), "Random choice: %d",next_vertex);
     
     return next_vertex;    
 }
 
 int main(int argc, char** argv) {
+    rclcpp::init(argc,argv);
   
     Random_Agent agent;
     agent.init(argc,argv);

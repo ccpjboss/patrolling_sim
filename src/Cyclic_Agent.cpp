@@ -66,8 +66,10 @@ public:
 };
 
 void Cyclic_Agent::init(int argc, char** argv) {
+    printf("Cyclic init...\n");
     
     PatrolAgent::init(argc,argv);
+    printf("Patrol Agent init done ... \n");
     
     //robot's cyclic path:
     path = new int[8*dimension];
@@ -108,7 +110,8 @@ void Cyclic_Agent::receive_results() {
 
 
 int main(int argc, char** argv) {
-  
+    rclcpp::init(argc,argv);
+
     Cyclic_Agent agent;
     agent.init(argc,argv);
     agent.run();

@@ -22,8 +22,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(ament_index_cpp REQUIRED)
-find_package(stage_ros2 REQUIRED)
-find_package(std_srvs REQUIRED)
+#find_package(stage_ros REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(patrolling_sim_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
@@ -111,7 +110,7 @@ add_library(PatrolAgent
 #            "$<INSTALL_INTERFACE:include>")      
 
 ament_target_dependencies(PatrolAgent "rclcpp" "ament_index_cpp" 
-  "nav2_msgs" "rclcpp_action" "tf2_ros" "nav_msgs" "std_srvs" "tf2_geometry_msgs" "tf2")
+  "nav2_msgs" "rclcpp_action" "tf2_ros" "nav_msgs" "tf2_geometry_msgs" "tf2" "patrolling_sim_msgs")
 
 #install(
 #  TARGETS PatrolAgent EXPORT PatrolAgent
@@ -125,7 +124,7 @@ add_library(SSIPatrolAgent
             src/SSIPatrolAgent.cpp
             src/algorithms.cpp)
             
-ament_target_dependencies(SSIPatrolAgent "rclcpp")
+ament_target_dependencies(SSIPatrolAgent "rclcpp" "nav2_msgs" "patrolling_sim_msgs")
 
 include_directories(src)
 #ament_export_include_directories(include)
@@ -319,11 +318,9 @@ ament_export_dependencies(nav2_msgs)
 ament_export_dependencies(tf2)
 ament_export_dependencies(tf2_ros)
 ament_export_dependencies(tf2_geometry_msgs)
-ament_export_dependencies(stage_ros2)
+#ament_export_dependencies(stage_ros2)
 ament_export_dependencies(std_msgs)
-ament_export_dependencies(std_srvs)
 
-# Install launch files.
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 install(TARGETS monitor Conscientious_Reactive Heuristic_Conscientious_Reactive
   Conscientious_Cognitive Cyclic MSP GBS SEBS CBLS Random DTAGreedy
@@ -331,5 +328,8 @@ install(TARGETS monitor Conscientious_Reactive Heuristic_Conscientious_Reactive
 install(DIRECTORY params DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY maps DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY rviz DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY worlds DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY description DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY MSP DESTINATION share/${PROJECT_NAME})
 
 ament_package()
