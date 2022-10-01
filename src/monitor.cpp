@@ -59,7 +59,6 @@ using namespace std;
 
 #include "getgraph.h"
 #include "message_types.h"
-#include "patrolling_sim_msgs/msg/latency.hpp"
 #include "patrolling_sim_msgs/srv/go_to_start_pos_srv.hpp"
 
 #define NUM_MAX_ROBOTS 32
@@ -97,13 +96,6 @@ rclcpp::Publisher<std_msgs::msg::String>::SharedPtr screenshot_pub;
 // GotoStartPosMethod;
 rclcpp::Client<patrolling_sim_msgs::srv::GoToStartPosSrv>::SharedPtr
     GotoStartPosMethod;
-
-// Latency pub sub
-rclcpp::Publisher<patrolling_sim_msgs::msg::Latency>::SharedPtr latency_pub;
-rclcpp::Subscription<patrolling_sim_msgs::msg::Latency>::SharedPtr latency_sub;
-int last_received_packet=0;
-std::chrono::high_resolution_clock::time_point T1_latency;
-bool latency_lock = false;
 
 // Initialization:
 bool initialize = true;      // Initialization flag
@@ -163,9 +155,6 @@ FILE *idlfile;
 // log file
 FILE *logfile = NULL;
 
-// latency file
-ofstream latency_file;
-
 void dolog(const char *str) {
   if (logfile) {
     fprintf(logfile, "%s\n", str);
@@ -186,21 +175,6 @@ void set_last_goal_reached(int k, double val) {
   pthread_mutex_lock(&lock_last_goal_reached);
   last_goal_reached[k] = val;
   pthread_mutex_unlock(&lock_last_goal_reached);
-}
-
-void latencyCB(const patrolling_sim_msgs::msg::Latency &msg) {
-  int id = msg.robot_id;
-  int packet_id = msg.packet_id;
-
-  if (packet_id == last_received_packet+1 && latency_lock == true) {
-    std::chrono::high_resolution_clock::time_point T2_latency = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> latency = (T2_latency - T1_latency) / 2;
-    RCLCPP_INFO(n_ptr->get_logger(), "Latency from Robot_%d is %f ms", id,
-                latency.count());
-    latency_file << packet_id << ";" << latency.count()<<"\n";
-    last_received_packet++;
-    latency_lock = false;
-  }
 }
 
 void resultsCB(const std_msgs::msg::Int16MultiArray &msg) {
@@ -712,7 +686,6 @@ int main(int argc, char **argv) { // pass TEAMSIZE GRAPH ALGORITHM
   char teamsize_str[3];
   teamsize = atoi(argv[3]);
 
-  // Create latency related vectors
 
   if (teamsize >= NUM_MAX_ROBOTS || teamsize < 1) {
     RCLCPP_INFO(n_ptr->get_logger(),
@@ -828,16 +801,6 @@ int main(int argc, char **argv) { // pass TEAMSIZE GRAPH ALGORITHM
   fprintf(resultstimecsvfile, "Time;Idleness min;Idleness avg;Idleness "
                               "stddev;Idleness max;Interferences\n"); // header
   
-  string latency_filename = expname + "_latency.csv";
-  latency_file.open(latency_filename,std::ios::out);
-  std::cout << latency_filename << "\n";
-  if (!latency_file.is_open())
-  {
-      std::cout<<"Failed to open latency file ...\n";
-  }
-  
-  latency_file << "packet;latency(ms)\n";
-
 #if LOG_MONITOR
   char logfilename[80];
   sprintf(logfilename, "monitor_%s.log", strnow);
@@ -868,12 +831,6 @@ int main(int argc, char **argv) { // pass TEAMSIZE GRAPH ALGORITHM
   GotoStartPosMethod =
       n_ptr->create_client<patrolling_sim_msgs::srv::GoToStartPosSrv>(
           "go_to_start_pos_srv");
-
-  // Latency publisher and subscriber
-  latency_pub = n_ptr->create_publisher<patrolling_sim_msgs::msg::Latency>(
-      "/latency_ping", 1);
-  latency_sub = n_ptr->create_subscription<patrolling_sim_msgs::msg::Latency>(
-      "/latency_pong", 1, latencyCB);
 
 #if EXTENDED_STAGE
   screenshot_pub = nh.advertise<std_msgs::String>("/stageGUIRequest", 100);
@@ -1156,15 +1113,6 @@ int main(int argc, char **argv) { // pass TEAMSIZE GRAPH ALGORITHM
 
       dolog("    check - end");
 
-      if(latency_lock == false)
-      {
-        patrolling_sim_msgs::msg::Latency msg;
-        msg.robot_id = 0;
-        msg.packet_id = last_received_packet;
-        T1_latency = std::chrono::high_resolution_clock::now();
-        latency_pub->publish(msg);
-        latency_lock = true;
-      }
 
     } // if ! initialize
 
@@ -1186,7 +1134,6 @@ int main(int argc, char **argv) { // pass TEAMSIZE GRAPH ALGORITHM
 
   fclose(idlfile);
   fclose(resultstimecsvfile);
-  latency_file.close();
 
   duration = current_time - time_zero;
   time_t real_now;
