@@ -17,3 +17,4 @@ launch_ros1/
 setinitposes copy.py
 
 start_experiment copy.py
+maps/1r5/robots.inc

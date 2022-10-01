@@ -39,20 +39,13 @@
 #include <string>
 #include <vector>
 #include <functional>
-//#include <ros/ros.h>
 #include "rclcpp/rclcpp.hpp"
-////#include <move_base_msgs/MoveBaseAction.h>
 #include "nav2_msgs/action/navigate_to_pose.hpp"
-//#include <actionlib/client/simple_action_client.h>
 #include "rclcpp_action/rclcpp_action.hpp"
-//#include <tf/transform_broadcaster.h>
 #include "tf2_ros/transform_broadcaster.h"
-//#include <tf/transform_listener.h>
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/buffer.h"
-//#include <nav_msgs/Odometry.h>
 #include "nav_msgs/msg/odometry.hpp"
-//#include <std_msgs/Int16MultiArray.h>
 #include "std_msgs/msg/int16_multi_array.hpp"
 #include "nav2_msgs/srv/clear_entire_costmap.hpp"
 #include "patrolling_sim_msgs/msg/latency.hpp"
@@ -65,7 +58,6 @@
 #include "message_types.h"
 
 typedef unsigned int uint;
-//typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
 typedef rclcpp_action::Client<nav2_msgs::action::NavigateToPose> nav2_client;
 
 class PatrolAgent{
@@ -78,7 +70,6 @@ protected:
     double xPos[NUM_MAX_ROBOTS]; //tabelas de posições (atençao ao index pro caso de 1 so robot)
     double yPos[NUM_MAX_ROBOTS]; //tabelas de posições (atençao ao index pro caso de 1 so robot)
 
-    //tf::TransformListener *listener;
     std::shared_ptr<tf2_ros::TransformListener> listener{nullptr};
     std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
     std::string graph_file, mapname;
@@ -91,7 +82,6 @@ protected:
     bool initialize;
     bool end_simulation;
     int next_vertex;
-    // uint backUpCounter;
     vertex *vertex_web;
     double *instantaneous_idleness;  // local idleness
     double *last_visit;
@@ -102,26 +92,19 @@ protected:
     int aborted_count, resend_goal_count;
     int latency_packet;
     
-    //MoveBaseClient *ac; // action client for reaching target goals
     std::shared_ptr<nav2_client> ac;
     
-    //ros::Subscriber odom_sub, positions_sub;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr positions_sub;
 
-    //ros::Publisher positions_pub;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr positions_pub;
-    //ros::Subscriber results_sub;
     rclcpp::Subscription<std_msgs::msg::Int16MultiArray>::SharedPtr results_sub;
-    //ros::Publisher results_pub;
     rclcpp::Publisher<std_msgs::msg::Int16MultiArray>::SharedPtr results_pub;
-    //ros::Publisher cmd_vel_pub;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub;
 
     //Clear costmap client
     rclcpp::Client<nav2_msgs::srv::ClearEntireCostmap>::SharedPtr clear_client;
     std::shared_ptr<rclcpp::Node> n_ptr{nullptr};
-    //rclcpp::executors::SingleThreadedExecutor exec;
     rclcpp::ExecutorOptions exec_options;
     rclcpp::executors::SingleThreadedExecutor exec = rclcpp::executors::SingleThreadedExecutor(exec_options);
 
