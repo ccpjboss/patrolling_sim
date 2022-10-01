@@ -48,7 +48,6 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "std_msgs/msg/int16_multi_array.hpp"
 #include "nav2_msgs/srv/clear_entire_costmap.hpp"
-#include "patrolling_sim_msgs/msg/latency.hpp"
 
 #include "getgraph.h"
 
@@ -109,8 +108,6 @@ protected:
     rclcpp::executors::SingleThreadedExecutor exec = rclcpp::executors::SingleThreadedExecutor(exec_options);
 
     // Latency pub_sub
-    rclcpp::Publisher<patrolling_sim_msgs::msg::Latency>::SharedPtr latency_pub;
-    rclcpp::Subscription<patrolling_sim_msgs::msg::Latency>::SharedPtr latency_sub;
     rclcpp::CallbackGroup::SharedPtr nav_cb_group{nullptr};
     
 public:
@@ -134,7 +131,6 @@ public:
     
     void getRobotPose(int robotid, float &x, float &y, float &theta);
     void odomCB(const nav_msgs::msg::Odometry &msg);
-    void latencyCB(const patrolling_sim_msgs::msg::Latency &msg);
     
     void sendGoal(int next_vertex);
     void cancelGoal();

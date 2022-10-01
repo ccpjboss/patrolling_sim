@@ -45,22 +45,14 @@
 #include <time.h>
 #include <unistd.h>
 
-//#include <ros/ros.h>
 #include "rclcpp/rclcpp.hpp"
-//#include <ros/package.h> //to get pkg path
 #include <ament_index_cpp/get_package_share_directory.hpp> //to get pkg path
-//#include <move_base_msgs/MoveBaseAction.h>
 #include "nav2_msgs/action/navigate_to_pose.hpp"
-//#include <actionlib/client/simple_action_client.h>
 #include "rclcpp_action/rclcpp_action.hpp"
-//#include <tf/transform_broadcaster.h>
 #include "tf2_ros/transform_broadcaster.h"
-//#include <tf/transform_listener.h>
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
-//#include <std_msgs/Int16MultiArray.h>
 #include "std_msgs/msg/int16_multi_array.hpp"
-//#include <std_msgs/String.h>
 #include "std_msgs/msg/string.hpp"
 
 using namespace std;

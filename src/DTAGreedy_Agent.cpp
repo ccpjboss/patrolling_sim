@@ -38,20 +38,13 @@
 #include <sstream>
 #include <string>
 #include <pthread.h>
-//#include <ros/ros.h>
 #include "rclcpp/rclcpp.hpp"
-//#include <move_base_msgs/MoveBaseAction.h>
 #include "nav2_msgs/action/navigate_to_pose.hpp"
-//#include <actionlib/client/simple_action_client.h>
 #include "rclcpp_action/rclcpp_action.hpp"
-//#include <tf/transform_broadcaster.h>
 #include "tf2_ros/transform_broadcaster.h"
-//#include <tf/transform_listener.h>
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/buffer.h"
-//#include <nav_msgs/Odometry.h>
 #include "nav_msgs/msg/odometry.hpp"
-//#include <std_msgs/Int16MultiArray.h>
 #include "std_msgs/msg/int16_multi_array.hpp"
 
 #include "PatrolAgent.h"

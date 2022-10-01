@@ -40,22 +40,14 @@
 #include <memory>
 #include <functional>
 #include <unistd.h>
-//#include <ros/ros.h>
 #include "rclcpp/rclcpp.hpp"
-//#include <ros/package.h> //to get pkg path
 #include <ament_index_cpp/get_package_share_directory.hpp>
-//#include <move_base_msgs/MoveBaseAction.h>
 #include "nav2_msgs/action/navigate_to_pose.hpp"
-//#include <actionlib/client/simple_action_client.h>
 #include "rclcpp_action/rclcpp_action.hpp"
-//#include <tf/transform_broadcaster.h>
 #include "tf2_ros/transform_broadcaster.h"
-//#include <tf/transform_listener.h>
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/buffer.h"
-//#include <nav_msgs/Odometry.h>
 #include "nav_msgs/msg/odometry.hpp"
-//#include <std_srvs/Empty.h>
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 #include "tf2/utils.h"
 #include "nav2_msgs/srv/clear_entire_costmap.hpp"
@@ -205,14 +197,6 @@ void PatrolAgent::init(int argc, char** argv) {
     //Subscrever para obter dados de "odom" do robot corrente
     odom_sub = n_ptr->create_subscription<nav_msgs::msg::Odometry>(string1,1,std::bind(&PatrolAgent::odomCB,this,_1));
 
-    if (ID_ROBOT == 0){
-      latency_pub = n_ptr->create_publisher<patrolling_sim_msgs::msg::Latency>(
-          "/latency_pong", 1);
-      latency_sub =
-          n_ptr->create_subscription<patrolling_sim_msgs::msg::Latency>(
-              "/latency_ping", 1, std::bind(&PatrolAgent::latencyCB, this, _1));
-    }
-    
     this->exec.spin_some();
     
     //Publicar dados para "results"
@@ -506,22 +490,6 @@ void PatrolAgent::getRobotPose(int robotid, float &x, float &y, float &theta) {
     x = transform.transform.translation.x;
     y = transform.transform.translation.y;
     theta = tf2::getYaw(transform.transform.rotation);
-}
-
-void PatrolAgent::latencyCB(const patrolling_sim_msgs::msg::Latency &msg)
-{
-    if(ID_ROBOT == 0)
-    {
-      RCLCPP_DEBUG(n_ptr->get_logger(), "Latency CB: Expecting packet: %d",
-                   latency_packet);
-      if (msg.robot_id == ID_ROBOT && msg.packet_id == latency_packet) {
-        patrolling_sim_msgs::msg::Latency msg;
-        msg.robot_id = ID_ROBOT;
-        msg.packet_id = latency_packet + 1;
-        this->latency_pub->publish(msg);
-        latency_packet++;
-      }
-    }
 }
 
 void PatrolAgent::odomCB(const nav_msgs::msg::Odometry &msg) { //colocar propria posicao na tabela

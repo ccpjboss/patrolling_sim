@@ -1,17 +1,10 @@
-//#include <ros/ros.h>
 #include "rclcpp/rclcpp.hpp"
-////#include <move_base_msgs/MoveBaseAction.h>
 #include "nav2_msgs/action/navigate_to_pose.hpp"
-//#include <actionlib/client/simple_action_client.h>
 #include "rclcpp_action/rclcpp_action.hpp"
-//#include <tf/transform_broadcaster.h>
 #include "tf2_ros/transform_broadcaster.h"
-//#include <geometry_msgs/Twist.h>
 #include "geometry_msgs/msg/twist.hpp"
-//#include "patrolling_sim_msgs/srv/GoToStartPosSrv.hpp"
 #include "patrolling_sim_msgs/srv/go_to_start_pos_srv.hpp"
 #include "tf2/utils.h"
-// typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
 typedef rclcpp_action::Client<nav2_msgs::action::NavigateToPose> nav2_client;
 
 using namespace std;
